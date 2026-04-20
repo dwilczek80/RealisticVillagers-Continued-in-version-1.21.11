@@ -211,6 +211,7 @@ public final class RealisticVillagers extends JavaPlugin {
             Constructor<?> converterConstructor = converterClass.getConstructor(getClass());
             converter = (INMSConverter) converterConstructor.newInstance(this);
             converter.registerEntities();
+            converter.refreshSchedules(); // Build timelines BEFORE WorldInitEvent fires.
         } catch (ReflectiveOperationException exception) {
             logger.severe("NMSConverter couldn't find a valid implementation for this server version.");
             exception.printStackTrace();
@@ -376,6 +377,13 @@ public final class RealisticVillagers extends JavaPlugin {
 
                     // Refresh schedules.
                     converter.refreshSchedules();
+
+                    // Re-cache EnvironmentAttributeSystem for all loaded worlds after schedule
+                    // refresh, otherwise villagers will use stale or vanilla schedules until
+                    // the next server restart (causing sleep/job loop).
+                    for (World world : getServer().getWorlds()) {
+                        converter.addGameRuleListener(world);
+                    }
 
                     // Refresh brains sync to prevent issues.
                     getServer().getScheduler().runTask(this, () -> {
@@ -1045,11 +1053,29 @@ public final class RealisticVillagers extends JavaPlugin {
     }
 
     public static @Nullable OfflineDataWrapper villagerDataFromPDC(RealisticVillagers plugin, PersistentDataContainer container) {
+        // Attempt 1: new format — OfflineDataWrapper stored under "RValues" (1.21.11+)
         try {
-            return container.get(plugin.getNpcValuesKey(), RealisticVillagers.VILLAGER_DATA);
-        } catch (Exception exception) {
-            return null;
+            OfflineDataWrapper wrapper = container.get(plugin.getNpcValuesKey(), RealisticVillagers.VILLAGER_DATA);
+            if (wrapper != null) return wrapper;
+        } catch (Exception ignored) {
+            // Stored in a different format — fall through to legacy attempts.
         }
+        // Attempt 2: legacy format — OfflineVillagerNPC stored under "RValues" (saved by 1.21.8).
+        // The 1.21.8 NMSConverter used ConfigurationSerializableDataType<OfflineVillagerNPC> which
+        // is incompatible with the current ConfigurationSerializableDataType<OfflineDataWrapper>.
+        // getNPCFromPDC extracts the raw bytes and re-interprets them, returning an OfflineDataWrapper.
+        try {
+            OfflineDataWrapper legacy = plugin.getConverter().getNPCFromPDC(container, plugin.getNpcValuesKey());
+            if (legacy != null) return legacy;
+        } catch (Exception ignored) {
+        }
+        // Attempt 3: very old format stored under legacy key "VillagerNPCValues" (pre-1.21.8).
+        try {
+            OfflineDataWrapper wrapper = container.get(plugin.getLegacyNpcValuesKey(), RealisticVillagers.VILLAGER_DATA);
+            if (wrapper != null) return wrapper;
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     public static @Nullable OfflineDataWrapper villagerDataFromPrimitive(byte[] primitive, PersistentDataAdapterContext context) {

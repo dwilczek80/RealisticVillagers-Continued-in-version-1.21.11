@@ -64,6 +64,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.*;
 import net.minecraft.world.attribute.EnvironmentAttribute;
+import net.minecraft.world.attribute.EnvironmentAttributeSystem;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -413,11 +414,21 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     public void updateActivityFromSchedule(Brain<Villager> brain) {
-        //if (!(plugin.getConverter() instanceof NMSConverter converter)) return;
         if (level() instanceof ServerLevel level) {
+            EnvironmentAttributeSystem env = NMSConverter.ENVIRONMENT_CACHE.get(level.uuid);
+            if (env == null) {
+                // Cache miss — this can happen if the world loaded before the plugin or after
+                // a schedule refresh. Rebuild the environment now and store it.
+                plugin.getConverter().addGameRuleListener(level.getWorld());
+                env = NMSConverter.ENVIRONMENT_CACHE.getOrDefault(level.uuid, level.environmentAttributes());
+            }
+            // Must invalidate per-tick cache so the timeline sampler re-evaluates the current
+            // day-time each call. Without this, the sampler is frozen at the first value it
+            // ever computed (ServerLevel.tick() does this for level.environmentAttributes(),
+            // but not for our custom ENVIRONMENT_CACHE instances).
+            env.invalidateTickCache();
             brain.updateActivityFromSchedule(
-                    //converter.createSystemForWorld(level),
-                    NMSConverter.ENVIRONMENT_CACHE.get(level.uuid),
+                    env,
                     level.getGameTime(),
                     position());
         }

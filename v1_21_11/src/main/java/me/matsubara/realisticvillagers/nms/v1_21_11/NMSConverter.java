@@ -61,7 +61,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.storage.RegionFile;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
-import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.timeline.Timeline;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -164,8 +163,14 @@ public class NMSConverter implements INMSConverter {
                 field,
                 EntityType.VILLAGER,
                 (EntityType.EntityFactory<Villager>) (type, level) -> {
-                    if (level.getLevelData() instanceof PrimaryLevelData data && plugin.isEnabledIn(data.getLevelName())) {
-                        return new VillagerNPC(EntityType.VILLAGER, level);
+                    try {
+                        if (level instanceof ServerLevel serverLevel) {
+                            org.bukkit.World world = serverLevel.getWorld();
+                            if (world != null && plugin.isEnabledIn(world.getName())) {
+                                return new VillagerNPC(EntityType.VILLAGER, level);
+                            }
+                        }
+                    } catch (Throwable ignored) {
                     }
                     return new Villager(EntityType.VILLAGER, level);
                 });
@@ -173,8 +178,14 @@ public class NMSConverter implements INMSConverter {
                 field,
                 EntityType.WANDERING_TRADER,
                 (EntityType.EntityFactory<WanderingTrader>) (type, level) -> {
-                    if (level.getLevelData() instanceof PrimaryLevelData data && plugin.isEnabledIn(data.getLevelName())) {
-                        return new WanderingTraderNPC(EntityType.WANDERING_TRADER, level);
+                    try {
+                        if (level instanceof ServerLevel serverLevel) {
+                            org.bukkit.World world = serverLevel.getWorld();
+                            if (world != null && plugin.isEnabledIn(world.getName())) {
+                                return new WanderingTraderNPC(EntityType.WANDERING_TRADER, level);
+                            }
+                        }
+                    } catch (Throwable ignored) {
                     }
                     return new WanderingTrader(EntityType.WANDERING_TRADER, level);
                 });
@@ -452,6 +463,40 @@ public class NMSConverter implements INMSConverter {
         if (defaultTimeline != null) builder.addTimelineLayer(defaultTimeline, level::getDayTime);
 
         ENVIRONMENT_CACHE.put(world.getUID(), builder.build());
+    }
+
+    @Override
+    public @Nullable OfflineDataWrapper getNPCFromPDC(org.bukkit.persistence.PersistentDataContainer container, org.bukkit.NamespacedKey key) {
+        try {
+            // Extract raw Tag from the PDC compound using the key string.
+            Tag values = ((CraftPersistentDataContainer) container).toTagCompound().get(key.toString());
+            if (values == null) return null;
+
+            byte[] primitive = REGISTRY.extract(RealisticVillagers.VILLAGER_DATA, values);
+
+            // Try new format first (OfflineDataWrapper stored by 1.21.11+).
+            OfflineDataWrapper wrapper = RealisticVillagers.villagerDataFromPrimitive(primitive, ADAPTER_CONTEXT);
+            if (wrapper != null) return wrapper;
+
+            // Legacy format (saved by 1.21.8): ConfigurationSerializableDataType stores a YAML
+            // serialized map with a "==" key containing the fully-qualified class name.
+            // OfflineVillagerNPC.serialize() and OfflineDataWrapper.serialize() produce identical
+            // map structures — only the class name in "==" differs.
+            // We patch the class name in the raw bytes and re-deserialize as OfflineDataWrapper.
+            String raw = new String(primitive, java.nio.charset.StandardCharsets.UTF_8);
+            // Cover both v1_21_4 (1.21.7/1.21.8) and any other versioned package paths.
+            String patched = raw.replaceAll(
+                    "me\\.matsubara\\.realisticvillagers\\.entity\\.v1_21_[^.]+\\.villager\\.OfflineVillagerNPC",
+                    OfflineDataWrapper.class.getName());
+            if (!patched.equals(raw)) {
+                return RealisticVillagers.villagerDataFromPrimitive(
+                        patched.getBytes(java.nio.charset.StandardCharsets.UTF_8), ADAPTER_CONTEXT);
+            }
+            return null;
+        } catch (Exception ignored) {
+            // Data was stored in a completely different format or is corrupted.
+            return null;
+        }
     }
 
     private @Nullable Holder<Timeline> createTimeline(@NotNull String name) {

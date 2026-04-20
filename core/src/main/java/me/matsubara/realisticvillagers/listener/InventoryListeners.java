@@ -436,6 +436,7 @@ public final class InventoryListeners implements Listener {
                     Messages.Message.THROW_GIFT :
                     Messages.Message.RIGHT_CLICK_GIFT;
             handleExpecting(player, npc, ExpectingType.GIFT, message, Messages.Message.GIFT_EXPECTING);
+            closeInventory(player);
         } else if (isCustomItem(current, "procreate")) {
             // Return if it's a kid.
             if (conditionNotMet(player, villager.isAdult(), Messages.Message.INTERACT_FAIL_NOT_AN_ADULT)) return;
@@ -510,6 +511,7 @@ public final class InventoryListeners implements Listener {
                     true,
                     "realisticvillagers.bypass.sethome")) return;
             handleExpecting(player, npc, ExpectingType.BED, Messages.Message.SELECT_BED, Messages.Message.SET_HOME_EXPECTING);
+            closeInventory(player);
         } else if (isCustomItem(current, "divorce-papers")) {
             // If it's (ask) papers item, then the villager is INDEED a cleric.
             if (!plugin.isMarried(player)) {

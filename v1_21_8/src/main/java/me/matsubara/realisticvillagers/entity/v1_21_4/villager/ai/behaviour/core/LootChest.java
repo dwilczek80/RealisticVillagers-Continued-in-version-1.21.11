@@ -200,7 +200,7 @@ public class LootChest extends Behavior<Villager> implements Exchangeable {
                 int takeAmount = gift.getAmount();
                 int currentAmount = copy.getAmount();
 
-                copy.setAmount(Math.min(takeAmount != -1 ? takeAmount : level.random.nextInt(1, currentAmount + 1), currentAmount));
+                copy.setAmount(Math.min(takeAmount != -1 ? takeAmount : level.random.nextInt(currentAmount) + 1, currentAmount));
 
                 if (villager.getInventory().canAddItem(CraftItemStack.asNMSCopy(copy))) {
                     items.add(copy);

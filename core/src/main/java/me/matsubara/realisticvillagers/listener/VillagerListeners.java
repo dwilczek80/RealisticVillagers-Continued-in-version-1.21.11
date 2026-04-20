@@ -148,6 +148,27 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
             if (npc != null && npc.bukkit().equals(villager)) player.closeInventory();
         }
 
+        // Czyść stan oczekiwania i interakcji przy śmierci villgera,
+        // żeby gracz mógł ponownie zainicjować gift/bed
+        Optional<IVillagerNPC> npcOptional = plugin.getConverter().getNPC(villager);
+        if (npcOptional.isPresent()) {
+            IVillagerNPC deadNpc = npcOptional.get();
+            if (deadNpc.isExpecting()) {
+                UUID expectingFrom = deadNpc.getExpectingFrom();
+                String cooldownKey = deadNpc.getExpectingType().name().toLowerCase(Locale.ROOT);
+                deadNpc.stopExpecting();
+                if (expectingFrom != null) {
+                    Player waitingPlayer = plugin.getServer().getPlayer(expectingFrom);
+                    if (waitingPlayer != null) {
+                        plugin.getCooldownManager().removeCooldown(waitingPlayer, cooldownKey);
+                    }
+                }
+            }
+            if (deadNpc.isInteracting()) {
+                deadNpc.stopInteracting();
+            }
+        }
+
         if (!Config.DROP_WHOLE_INVENTORY.asBool()) return;
         if (plugin.getTracker().isInvalid(villager, true)) return;
 
@@ -272,6 +293,9 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
             if (isExpecting(player, npc, ExpectingType.GIFT, item)) return;
             if (isExpecting(player, npc, ExpectingType.BED, item)) return;
 
+            // Shift+rightclick nie otwiera GUI
+            if (player.isSneaking()) return;
+
             if (npc.isInteracting()) {
                 if (!npc.getInteractingWith().equals(player.getUniqueId())) {
                     messages.send(player, Messages.Message.INTERACT_FAIL_INTERACTING);
@@ -340,31 +364,38 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         }
 
         // This villager is expecting something from this player, can't open the menu.
-        if (!player.isSneaking()) {
-            ExpectingManager expectingManager = plugin.getExpectingManager();
-            if (expecting.isGift()
-                    && expectingManager.getGiftModeFromConfig().rightClick()
-                    && item != null && !item.getType().isAir()
-                    && npc.bukkit() instanceof InventoryHolder holder) {
-                // Remove one unit.
-                ItemStack unit = new ItemBuilder(item)
-                        .setAmount(1)
-                        .build();
+        ExpectingManager expectingManager = plugin.getExpectingManager();
+        boolean isRightClickGift = expecting.isGift() && expectingManager.getGiftModeFromConfig().rightClick();
+        if (!player.isSneaking() || isRightClickGift) {
+            if (isRightClickGift && npc.bukkit() instanceof InventoryHolder holder) {
+                if (item != null && !item.getType().isAir()) {
+                    // Remove one unit.
+                    ItemStack unit = new ItemBuilder(item)
+                            .setAmount(1)
+                            .build();
 
-                // Remove from player inventory, add to villager inventory.
-                player.getInventory().removeItem(unit);
-                holder.getInventory().addItem(unit);
+                    // Remove from player inventory, add to villager inventory.
+                    player.getInventory().removeItem(unit);
+                    holder.getInventory().addItem(unit);
 
-                // Handle.
-                expectingManager.handleVillagerPickUp(npc, item, playerUUID, player, null);
+                    // Handle.
+                    expectingManager.handleVillagerPickUp(npc, item, playerUUID, player, null);
+                } else {
+                    // No item in hand — inform player what to hold
+                    messages.send(player, Messages.Message.valueOf("INTERACT_FAIL_EXPECTING_" + expecting + "_FROM_YOU"));
+                }
                 return true;
             }
             messages.send(player, Messages.Message.valueOf("INTERACT_FAIL_EXPECTING_" + expecting + "_FROM_YOU"));
             return true;
         }
 
-        // This villager is expecting something from this player (sneaking), stop interaction.
-        messages.send(player, npc, Messages.Message.valueOf((expecting.isGift() ? "GIFT_EXPECTING" : "SET_HOME") + "_FAIL"));
+        // This villager is expecting something from this player (sneaking, non-gift mode), stop interaction.
+        if (expecting.isGift()) {
+            messages.send(player, npc, Messages.Message.valueOf("GIFT_EXPECTING_FAIL"));
+        } else {
+            messages.send(player, npc, Messages.Message.valueOf("SET_HOME_FAIL"));
+        }
         npc.stopExpecting();
         plugin.getCooldownManager().removeCooldown(player, checkType.name().toLowerCase(Locale.ROOT));
         return true;

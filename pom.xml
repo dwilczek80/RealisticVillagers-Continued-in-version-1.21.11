@@ -6,7 +6,7 @@
 
     <groupId>me.matsubara</groupId>
     <artifactId>realisticvillagers-parent</artifactId>
-    <version>3.3.6.5</version>
+    <version>3.3.6.6</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -18,7 +18,7 @@
     <description>Forget about those boring villagers and replace them with interactive humans!</description>
 
     <modules>
-        <module>v1_18</module>
+        <module>Config-Updater-2.2-SNAPSHOT</module>
         <module>v1_19</module>
         <module>v1_20_6</module>
         <module>v1_21_8</module>
