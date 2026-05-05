@@ -142,6 +142,23 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         plugin.getServer().getScheduler().runTask(plugin, () -> tracker.refreshNPCSkin(villager, true));
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onVillagerAcquireTrade(@NotNull org.bukkit.event.entity.VillagerAcquireTradeEvent event) {
+        if (!(event.getEntity() instanceof Villager villager)) return;
+
+        VillagerTracker tracker = plugin.getTracker();
+        if (tracker.isInvalid(villager)) return;
+
+        // Trade level-up: just refresh nametags (level display)
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            tracker.getNPC(villager.getEntityId()).ifPresent(npc -> {
+                for (org.bukkit.entity.Player player : npc.getSeeingPlayers()) {
+                    npc.refreshNametags(player);
+                }
+            });
+        }, 15L);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityTargetLivingEntity(@NotNull EntityTargetLivingEntityEvent event) {
         if (!(event.getEntity() instanceof IronGolem)) return;

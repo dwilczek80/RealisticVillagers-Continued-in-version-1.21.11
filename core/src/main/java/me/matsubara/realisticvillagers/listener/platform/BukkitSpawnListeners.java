@@ -138,12 +138,14 @@ public class BukkitSpawnListeners implements Listener {
             if (nearbyNPC == null) continue;
 
             if (fatherNPC == null && nearbyNPC.isMale()) {
+                if (motherNPC != null && motherNPC.isFamily(nearbyNPC.getUniqueId(), false)) continue;
                 // Skip if nearbyNPC already has npc as a child or if npc is nearbyNPC's own parent (circular guard).
                 boolean hasNpcAsChild = nearbyNPC.getChildrens().stream().anyMatch(c -> c.getUniqueId().equals(npc.getUniqueId()));
                 boolean npcIsNearbyParent = (nearbyNPC.getFather() != null && nearbyNPC.getFather().getUniqueId().equals(npc.getUniqueId()))
                         || (nearbyNPC.getMother() != null && nearbyNPC.getMother().getUniqueId().equals(npc.getUniqueId()));
                 if (!hasNpcAsChild && !npcIsNearbyParent) fatherNPC = nearbyNPC;
             } else if (motherNPC == null && nearbyNPC.isFemale()) {
+                if (fatherNPC != null && fatherNPC.isFamily(nearbyNPC.getUniqueId(), false)) continue;
                 boolean hasNpcAsChild = nearbyNPC.getChildrens().stream().anyMatch(c -> c.getUniqueId().equals(npc.getUniqueId()));
                 boolean npcIsNearbyParent = (nearbyNPC.getFather() != null && nearbyNPC.getFather().getUniqueId().equals(npc.getUniqueId()))
                         || (nearbyNPC.getMother() != null && nearbyNPC.getMother().getUniqueId().equals(npc.getUniqueId()));
