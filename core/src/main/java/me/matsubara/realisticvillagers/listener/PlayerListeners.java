@@ -168,7 +168,7 @@ public final class PlayerListeners implements Listener {
         ItemStack item = event.getItem();
         if (item == null) return;
 
-        Player player = event.getPlayer();
+
 
         Material goatHorn = Material.valueOf("GOAT_HORN");
         if (item.getType() != goatHorn || player.hasCooldown(goatHorn)) return;
