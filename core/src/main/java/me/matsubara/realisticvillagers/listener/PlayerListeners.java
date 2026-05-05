@@ -79,6 +79,26 @@ public final class PlayerListeners implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPlayerMoveGender(@NotNull PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        String currentSex = player.getPersistentDataContainer().get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
+        if (currentSex == null || currentSex.isEmpty()) {
+            Location from = event.getFrom();
+            Location to = event.getTo();
+            if (to != null && (from.getBlockX() != to.getBlockX() || from.getBlockY() != to.getBlockY() || from.getBlockZ() != to.getBlockZ())) {
+                Location newTo = from.clone();
+                newTo.setYaw(to.getYaw());
+                newTo.setPitch(to.getPitch());
+                event.setTo(newTo);
+
+                if (plugin.getCooldownManager().canInteract(player, "gender_reminder", 3000L)) {
+                    plugin.getMessages().send(player, Messages.Message.PLAYER_GENDER_REMINDER);
+                }
+            }
+        }
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onPlayerMove(@NotNull PlayerMoveEvent event) {
         Location to = event.getTo();
@@ -127,6 +147,16 @@ public final class PlayerListeners implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        String currentSex = player.getPersistentDataContainer().get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
+        if (currentSex == null || currentSex.isEmpty()) {
+            event.setCancelled(true);
+            if (plugin.getCooldownManager().canInteract(player, "gender_reminder", 3000L)) {
+                plugin.getMessages().send(player, Messages.Message.PLAYER_GENDER_REMINDER);
+            }
+            return;
+        }
+
         handleWhistle(event);
         handleBabySpawn(event);
 

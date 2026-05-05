@@ -212,6 +212,7 @@ public final class Messages {
         GENDER_INVALID("gender.invalid"),
         PLAYER_GENDER_SET("player-gender.set"),
         PLAYER_GENDER_ALREADY("player-gender.already"),
+        PLAYER_GENDER_REMINDER("player-gender.reminder"),
         INTERACT_FAIL_FIGHTING_OR_RAID("interact-fail.fighting-or-raid"),
         INTERACT_FAIL_PROCREATING("interact-fail.procreating"),
         INTERACT_FAIL_EXPECTING_GIFT_FROM_YOU("interact-fail.expecting-gift-from-you"),

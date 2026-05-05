@@ -235,6 +235,7 @@ gender:
 player-gender:
   set: "&aYour gender has been set to &e%gender%&a!"
   already: "&eYour gender is already set to &e%gender%&e."
+  reminder: "&cMusisz wybrac plec aby moc grac! Uzyj komendy: &e/gender <male/female>"
 
 gift:
   expecting:
