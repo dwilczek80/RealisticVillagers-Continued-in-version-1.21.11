@@ -34,8 +34,9 @@ public class VillagerHostilesSensor extends NearestVisibleLivingEntitySensor {
 
     @Override
     public boolean isMatchingEntity(ServerLevel level, LivingEntity entity, LivingEntity closest) {
-        return (isTarget(entity, closest)
-                || SPECIAL_ENTITIES.contains(closest.getType())
+        boolean canAttack = entity instanceof VillagerNPC npc && npc.canAttack();
+        return ((canAttack && SPECIAL_ENTITIES.contains(closest.getType()))
+                || isTarget(entity, closest)
                 || isDefend(entity, closest, this::getNearestFamily, Config.VILLAGER_DEFEND_FAMILY_MEMBER)
                 || isDefend(entity, closest, this::getNearestHero, Config.VILLAGER_DEFEND_HERO_OF_THE_VILLAGE)
                 || isDefend(entity, closest, this::getFollowing, Config.VILLAGER_DEFEND_FOLLOWING_PLAYER))

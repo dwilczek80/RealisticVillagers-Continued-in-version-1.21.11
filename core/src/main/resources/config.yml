@@ -1350,6 +1350,15 @@ spawn-loot:
         chance: 0.1
         material: TRIDENT
         damage: $RANDOM
+        enchantments:
+          - LOYALTY, 1-3
+      '6':
+        chance: 0.05
+        material: MACE
+        damage: $RANDOM
+        enchantments:
+          - DENSITY, 1-3
+          - BREACH, 1-2
     off-hand:
       '1':
         chance: 0.225
