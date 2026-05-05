@@ -1,85 +1,73 @@
-# 🏘️ RealisticVillagers 
+<div align="center">
 
-![License](https://img.shields.io/github/license/dwilczek80/RealisticVillagers-Continued-in-version-1.21.11?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-3.3.6.7-blue?style=for-the-badge)
-![Minecraft](https://img.shields.io/badge/Minecraft-1.18%20--%201.21.1-green?style=for-the-badge)
+![Realistic Villagers Banner](file:///C:/Users/dwilc/.gemini/antigravity/brain/9ad44297-3898-43ae-8caa-4ed034badf41/realistic_villagers_banner_1778021981218.png)
 
-Forget about those boring, silent villagers! **RealisticVillagers** transforms your Minecraft world by replacing vanilla villagers with interactive, human-like NPCs. They have names, genders, skins, families, and a complex social system that makes your villages feel truly alive.
-
----
-
-## ✨ Key Features
-
-### 👨‍👩‍👧‍👦 Complex Social System
-*   **Family Trees:** Villagers have parents, children, and partners. 
-*   **Marriage & Divorce:** Witness villagers getting married (using Wedding Rings) or going through messy divorces.
-*   **Procreation:** Villagers can have children that inherit traits from their parents.
-*   **Auto-Assign Family:** New villagers can be automatically assigned to nearby families to populate your world naturally.
-
-### 🎭 Realistic Interactions
-*   **Chat System:** Interact with villagers through a custom GUI. Talk, joke, flirt, or even insult them!
-*   **Reputation Matters:** Your actions affect how villagers perceive you. High reputation unlocks better trades and special interactions.
-*   **Dynamic Skins:** Every villager has a unique human skin, with support for **MineSkin** to fetch thousands of variations.
-*   **Gender System:** Both villagers and players can have defined genders (Male/Female), affecting interactions and family roles.
-
-### 🛡️ Combat & AI Enhancements
-*   **Self Defense:** Villagers can defend themselves or their family members when attacked.
-*   **Following & Staying:** Ask your favorite villager to follow you on an adventure or stay at a specific location.
-*   **Looting:** Some villagers (like Nitwits) might try to "borrow" items from nearby chests!
-*   **Revive System:** Don't let your favorite NPC stay dead! Use a special ritual to bring them back to life.
+# 🏘️ Realistic Villagers
+**Transform your static villages into a living, breathing civilization.**
 
 ---
 
-## 🛠️ Installation
+[ ✨ Features ](#-features) • [ 🚀 Installation ](#-installation) • [ 💻 Commands ](#-commands) • [ 🤝 Compatibility ](#-compatibility)
 
-1.  Download the latest `RealisticVillagers.jar`.
-2.  Install the required dependency: **[PacketEvents](https://github.com/retrooper/packetevents)**.
-3.  (Optional but Recommended) Install **[ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/)** for better packet handling.
-4.  Drop the plugin into your `plugins` folder.
-5.  Restart your server and enjoy!
+</div>
+
+## 📖 The Vision
+Forget the days of "Hrmmm" and blank stares. **Realistic Villagers** is the ultimate overhaul for Minecraft villagers. By replacing standard entities with dynamic, skin-aware NPCs, we bring a level of depth and immersion previously unseen. Whether it's building a family legacy, managing complex trades, or defending your home, every villager has a story.
+
+---
+
+## ✨ Features
+
+### 🧬 The Human Factor
+*   **Dynamic Identity:** Every NPC is uniquely gendered (Male/Female) with a personality-driven skin.
+*   **Professional Names:** No more "Villager #432". Meet *John the Farmer* or *Raquel the Cleric*.
+*   **Family Legacies:** A deep genealogy system. NPCs remember their parents, children, and spouses.
+*   **Marriage & Procreation:** Use Wedding Rings to form bonds. Watch families grow over generations.
+
+### 🧠 Advanced Artificial Intelligence
+*   **Self-Defense:** NPCs aren't helpless. They will fight back or call their family for help.
+*   **Social Interaction:** Talk, joke, flirt, or insult. Your reputation changes based on every word.
+*   **Interactive Needs:** Villagers have hunger, inventory needs, and even specific activities like looting or fishing.
+*   **Revive Rituals:** Lose a beloved villager? Bring them back with a sacred cross and a midnight ritual.
+
+### 🎨 Visual & Technical Excellence
+*   **MineSkin Integration:** Fetches high-quality skins automatically.
+*   **Trade Level-up Visuals:** Real-time nametag updates as your villagers grow in experience.
+*   **Optimized Performance:** Built on **PacketEvents** for minimal server impact and high stability.
+
+---
+
+## 🚀 Installation
+
+1.  **Dependencies:** Ensure you have **[PacketEvents](https://github.com/retrooper/packetevents)** installed.
+2.  **Plugin:** Drop `RealisticVillagers.jar` into your `/plugins/` folder.
+3.  **Setup:** Restart the server to generate the default configuration and skin cache.
+4.  **Go!** Witness the transformation of every village in your world.
 
 ---
 
 ## 💻 Commands
 
-| Command | Description | Permission |
-| :--- | :--- | :--- |
-| `/rv reload` | Reloads the configuration and messages. | `realisticvillagers.admin` |
-| `/rv skins` | Opens the skin management GUI. | `realisticvillagers.admin` |
-| `/gender <male\|female>` | Set your character's gender (Mandatory to play). | *None* |
-| `/rv genderset <player> <gender>` | Forcibly set a player's gender. | `realisticvillagers.genderset` |
-
----
-
-## ⚙️ Configuration Snippets
-
-The plugin is highly customizable. You can toggle almost every feature in `config.yml`:
-
-```yaml
-# procreation settings
-procreation-cooldown: 6000
-baby-grow-cooldown: 12000
-
-# Social settings
-villager-farm:
-  allow-procreation-between-family-members: false
-  ignore-sex-when-procreating: false
-```
+| Command | Description |
+| :--- | :--- |
+| `/gender <male\|female>` | **Mandatory** setup for players to interact with the world. |
+| `/rv reload` | Hot-reload all configurations and messages. |
+| `/rv skins` | Manage and preview NPC skin categories. |
+| `/rv genderset <p> <g>` | Admin command to override player gender. |
 
 ---
 
 ## 🤝 Compatibility
-RealisticVillagers is designed to work seamlessly with:
-*   **EliteMobs:** NPCs correctly interact with custom mobs.
-*   **AuthMe / Login Plugins:** The gender selection system is designed not to interfere with login processes.
-*   **ItemsAdder:** Custom item support for rings and whistles.
-*   **ViaVersion:** Multi-version support from 1.18 up to 1.21.1.
+We play nice with others:
+*   **EliteMobs:** NPCs recognize and react to elite threats.
+*   **ProtocolLib:** Enhanced packet handling for smooth skin transitions.
+*   **ViaVersion:** Full support from 1.18 to 1.21.1.
+*   **ItemsAdder:** Seamless custom item integration.
 
 ---
 
-## 📜 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+<div align="center">
+<i>Realistic Villagers — Because every village deserves a soul.</i>
 
----
-
-*Developed with ❤️ to make Minecraft villages feel like home.*
+[MIT License]
+</div>
