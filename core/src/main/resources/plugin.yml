@@ -23,3 +23,16 @@ commands:
       - rv
       - rvillagers
       - realvillagers
+  gender:
+    description: Change the gender of the villager you're looking at.
+    usage: /gender <male|female>
+    permission: realisticvillagers.gender
+    permission-message: "&cYou don't have permission to use this command."
+
+permissions:
+  realisticvillagers.gender:
+    description: Allows using /gender to set the gender of a villager you're looking at.
+    default: op
+  realisticvillagers.genderset:
+    description: Allows using /rv genderset to forcibly set a villager's gender for a target player (bypasses gender lock).
+    default: op

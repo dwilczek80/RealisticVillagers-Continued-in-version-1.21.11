@@ -199,6 +199,8 @@ procreate:
       - "Spend more time with me! I'm not ready for a child."
       - "Hmm... not just yet. I think we need to spend more time together first."
       - "I think we should take things slowly."
+    same-sex:
+      - "We can't have a child together... we're both the same!"
   # %time% - the waiting time to have another baby (@cooldown).
   cooldown: "&cYou must wait %time% to have another baby."
 
@@ -217,12 +219,22 @@ throw-gift:
   - "&aYou have %time% seconds to throw the gift to the villager."
   - "&cShift + right click to cancel this action!"
 select-bed:
-  - "&aYou have %time% seconds to give the villager a bed."
-  - "&cShift + right click to cancel this action!"
+  - "&cHold a bed in your hand and click Set Home again!"
 
 bed-occupied: "&cThis bed is occupied!"
 bed-established: "&aBed established!"
 bed-invalid: "&cInvalid bed!"
+bed-marked: "&aYour bed has been marked for &e%villager-name%&a! Place it anywhere to assign it as their home."
+
+gender:
+  changed: "&aChanged &e%villager-name%&a's gender to &e%gender%&a!"
+  locked: "&c%villager-name%&c's gender is locked and cannot be changed again."
+  no-villager: "&cYou must be looking at a villager to use this command."
+  invalid: "&cInvalid gender! Use &emale &cor &efemale&c."
+
+player-gender:
+  set: "&aYour gender has been set to &e%gender%&a!"
+  already: "&eYour gender is already set to &e%gender%&e."
 
 gift:
   expecting:
@@ -232,6 +244,35 @@ gift:
   expecting-fail:
     - "So why did you call me?"
     - "You said you were going to give me something?"
+  loved:
+    - "Oh wow, I love this! Thank you so much!"
+    - "This is amazing, I've always wanted one of these!"
+    - "I... I don't know what to say. Thank you!"
+    - "You're too kind, %player-name%!"
+    - "This is fantastic! I'll treasure it."
+  neutral:
+    - "How considerate! Thank you."
+    - "Thanks, %player-name%!"
+    - "How thoughtful of you!"
+    - "Oh, I love these!"
+    - "A gift? For me? How nice!"
+  disliked:
+    - "This isn't really my thing, but... thanks."
+    - "I... guess I can find a use for this."
+    - "Hmm. Thank you, I suppose."
+    - "Well... it was thoughtful of you."
+  bad:
+    - "This isn't a good gift..."
+    - "What made you think that I would like this?"
+    - "No thanks."
+    - "I don't want that, why would I?"
+    - "Why are you giving me that?"
+    - "Is this supposed to be a gift? No thanks."
+    - "I'm not a trash can."
+  cooldown:
+    - "I've had enough gifts for now, thank you!"
+    - "You've given me plenty already."
+    - "Please, no more gifts for a while."
   adult:
     success:
       good:

@@ -1,6 +1,7 @@
 package me.matsubara.realisticvillagers.listener.platform;
 
 import me.matsubara.realisticvillagers.RealisticVillagers;
+import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.nms.INMSConverter;
 import me.matsubara.realisticvillagers.tracker.VillagerTracker;
@@ -17,9 +18,17 @@ import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class BukkitSpawnListeners implements Listener {
 
     private final RealisticVillagers plugin;
+
+    // Tracks villagers that already had their family auto-assigned this session.
+    // Prevents re-scanning on every chunk reload.
+    private final Set<UUID> familyAssigned = ConcurrentHashMap.newKeySet();
 
     public BukkitSpawnListeners(RealisticVillagers plugin) {
         this.plugin = plugin;
@@ -103,7 +112,48 @@ public class BukkitSpawnListeners implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             tracker.spawnNPC(villager);
             tracker.updateData(villager);
+            // Only assign family for fresh spawns (reason != null) OR for chunk-loaded
+            // villagers that have never been scanned this session.
+            // Either way, each villager is only scanned once per session via familyAssigned.
+            if (villager instanceof Villager realVillager
+                    && villager.isAdult()
+                    && reason != CreatureSpawnEvent.SpawnReason.BREEDING
+                    && Config.AUTO_ASSIGN_FAMILY.asBool()
+                    && familyAssigned.add(realVillager.getUniqueId())) {
+                autoAssignFamily(converter, realVillager);
+            }
         });
+    }
+
+    private void autoAssignFamily(@NotNull INMSConverter converter, @NotNull Villager villager) {
+        IVillagerNPC npc = converter.getNPC(villager).orElse(null);
+        if (npc == null || npc.getFather() != null || npc.getMother() != null) return;
+
+        IVillagerNPC fatherNPC = null;
+        IVillagerNPC motherNPC = null;
+        for (Entity nearby : villager.getNearbyEntities(50, 10, 50)) {
+            if (!(nearby instanceof Villager nearbyVillager) || !nearbyVillager.isAdult()) continue;
+
+            IVillagerNPC nearbyNPC = converter.getNPC(nearbyVillager).orElse(null);
+            if (nearbyNPC == null) continue;
+
+            if (fatherNPC == null && nearbyNPC.isMale()) {
+                // Skip if nearbyNPC already has npc as a child or if npc is nearbyNPC's own parent (circular guard).
+                boolean hasNpcAsChild = nearbyNPC.getChildrens().stream().anyMatch(c -> c.getUniqueId().equals(npc.getUniqueId()));
+                boolean npcIsNearbyParent = (nearbyNPC.getFather() != null && nearbyNPC.getFather().getUniqueId().equals(npc.getUniqueId()))
+                        || (nearbyNPC.getMother() != null && nearbyNPC.getMother().getUniqueId().equals(npc.getUniqueId()));
+                if (!hasNpcAsChild && !npcIsNearbyParent) fatherNPC = nearbyNPC;
+            } else if (motherNPC == null && nearbyNPC.isFemale()) {
+                boolean hasNpcAsChild = nearbyNPC.getChildrens().stream().anyMatch(c -> c.getUniqueId().equals(npc.getUniqueId()));
+                boolean npcIsNearbyParent = (nearbyNPC.getFather() != null && nearbyNPC.getFather().getUniqueId().equals(npc.getUniqueId()))
+                        || (nearbyNPC.getMother() != null && nearbyNPC.getMother().getUniqueId().equals(npc.getUniqueId()));
+                if (!hasNpcAsChild && !npcIsNearbyParent) motherNPC = nearbyNPC;
+            }
+            if (fatherNPC != null && motherNPC != null) break;
+        }
+
+        if (fatherNPC != null) npc.setParent(fatherNPC);
+        if (motherNPC != null) npc.setParent(motherNPC);
     }
 
     private boolean handleVillagerMarket(Villager villager) {

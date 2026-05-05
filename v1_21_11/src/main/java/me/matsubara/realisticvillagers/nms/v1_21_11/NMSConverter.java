@@ -258,21 +258,27 @@ public class NMSConverter implements INMSConverter {
         baby.setYRot(0.0f);
         baby.setXRot(0.0f);
 
-        // Shouldn't be null unless the mother is dead.
-        IVillagerNPC mother = plugin.getTracker().getOffline(motherUUID);
-        if (mother != null) {
-            org.bukkit.entity.LivingEntity bukkitMother = plugin.getUnloadedOffline(mother);
+        // Partner can be the mother (female villager) or the father (male, when ignore-sex is enabled).
+        IVillagerNPC partner = plugin.getTracker().getOffline(motherUUID);
+        if (partner != null) {
+            org.bukkit.entity.LivingEntity bukkitPartner = plugin.getUnloadedOffline(partner);
 
-            VillagerNPC nmsMother = bukkitMother != null ? ((VillagerNPC) ((CraftVillager) bukkitMother).getHandle()) : null;
-            if (nmsMother != null) {
-                nmsMother.setAge(6000);
-                nmsMother.getChildrens().add(baby.getOffline());
-                baby.setMother(nmsMother.getOffline());
+            VillagerNPC nmsPartner = bukkitPartner != null ? ((VillagerNPC) ((CraftVillager) bukkitPartner).getHandle()) : null;
+            if (nmsPartner != null) {
+                nmsPartner.setAge(6000);
+                nmsPartner.getChildrens().add(baby.getOffline());
+                if (nmsPartner.isFemale()) {
+                    baby.setMother(nmsPartner.getOffline());
+                } else {
+                    baby.setFather(nmsPartner.getUniqueId(), true);
+                }
             }
         }
 
         UUID fatherUUID = father.getUniqueId();
-        baby.setFather(fatherUUID, false);
+        if (partner == null || partner.isFemale()) {
+            baby.setFather(fatherUUID, false);
+        }
 
         CustomGossipContainer gossips = baby.getGossips();
         for (GossipType type : GossipType.values()) {

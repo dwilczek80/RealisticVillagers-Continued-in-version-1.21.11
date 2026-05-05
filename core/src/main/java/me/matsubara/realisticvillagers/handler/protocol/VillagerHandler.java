@@ -165,20 +165,7 @@ public class VillagerHandler extends SimplePacketListenerAbstract {
         if (isCancellableSpawnPacket(event)) {
             if (!allowSpawn.contains(uuid)) {
                 event.setCancelled(true);
-                npc.ifPresent(value -> {
-                    rotateBody(event, villager);
-                    // If vanilla is trying to spawn the entity, it means the client doesn't have it 
-                    // (e.g. player walked into vanilla tracking range).
-                    // If our system thinks it IS shown, we have a desync. We must hide and re-evaluate 
-                    // to force sending the custom spawn packets again.
-                    if (value.isShownFor(player)) {
-                        plugin.getServer().getScheduler().runTask(plugin, () -> {
-                            if (!player.isValid() || !villager.isValid()) return;
-                            value.hide(player);
-                            plugin.getTracker().getPool().handleVisibility(player, player.getLocation(), value);
-                        });
-                    }
-                });
+                npc.ifPresent(value -> rotateBody(event, villager));
             }
             return;
         }
@@ -208,8 +195,11 @@ public class VillagerHandler extends SimplePacketListenerAbstract {
 
                 event.setCancelled(true);
 
-                // Cancel the packet and send a new one.
-                WrapperPlayServerEntityMetadata wrapper = new WrapperPlayServerEntityMetadata(id, metadata);
+                // Cancel the packet and send a new one using the FAKE NPC ID.
+                // This ensures the client applies metadata (like trade level-up or potion effects)
+                // to the NPC model it actually sees, preventing the "poof" desync bug.
+                int fakeId = npc.map(NPC::getEntityId).orElse(id);
+                WrapperPlayServerEntityMetadata wrapper = new WrapperPlayServerEntityMetadata(fakeId, metadata);
                 Object channel = SpigotReflectionUtil.getChannel(player);
                 PacketEvents.getAPI().getProtocolManager().sendPacket(channel, wrapper);
 

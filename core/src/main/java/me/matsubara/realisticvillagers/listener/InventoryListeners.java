@@ -28,6 +28,7 @@ import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
@@ -432,10 +433,33 @@ public final class InventoryListeners implements Listener {
             runTask(() -> new EquipmentGUI(plugin, npc, player));
             return;
         } else if (isCustomItem(current, "gift")) {
-            Messages.Message message = plugin.getExpectingManager().getGiftModeFromConfig().drop() ?
-                    Messages.Message.THROW_GIFT :
-                    Messages.Message.RIGHT_CLICK_GIFT;
-            handleExpecting(player, npc, ExpectingType.GIFT, message, Messages.Message.GIFT_EXPECTING);
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            if (mainHand.getType().isAir()) {
+                messages.send(player, npc, Messages.Message.GIFT_EXPECTING);
+            } else {
+                boolean isRing = PluginUtils.isItem(mainHand, plugin.getIsRingKey());
+                boolean isCross = PluginUtils.isItem(mainHand, plugin.getIsCrossKey());
+                boolean isValidGift = isRing || isCross
+                        || plugin.getGiftManager().getGift(mainHand.getType()) != null;
+                if (!isValidGift) {
+                    int badRep = plugin.getConfig().getInt("bad-gift-reputation", 5);
+                    if (badRep > 1) npc.addMinorNegative(player, badRep);
+                    npc.bukkit().playEffect(EntityEffect.VILLAGER_ANGRY);
+                    plugin.getMessages().sendRandomGiftMessage(player, npc, null);
+                } else if (plugin.getCooldownManager().isOnCooldown(player, villager, "gift")) {
+                    messages.send(player, npc, Messages.Message.GIFT_COOLDOWN);
+                } else {
+                    ItemStack giftItem = mainHand.clone();
+                    giftItem.setAmount(1);
+                    if (mainHand.getAmount() > 1) {
+                        mainHand.setAmount(mainHand.getAmount() - 1);
+                    } else {
+                        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                    }
+                    plugin.getExpectingManager().handleGift(npc, player, giftItem);
+                    plugin.getCooldownManager().addCooldown(player, villager, "gift");
+                }
+            }
             closeInventory(player);
         } else if (isCustomItem(current, "procreate")) {
             // Return if it's a kid.
@@ -443,6 +467,14 @@ public final class InventoryListeners implements Listener {
 
             // Return if not married.
             if (conditionNotMet(player, isPartner, Messages.Message.INTERACT_FAIL_NOT_MARRIED)) return;
+
+            // Return if same sex (player and villager must have different sexes unless ignore-sex is on).
+            if (!Config.IGNORE_SEX_WHEN_PROCREATING.asBool()) {
+                String playerSex = player.getPersistentDataContainer()
+                        .getOrDefault(plugin.getPlayerSexKey(), PersistentDataType.STRING, "male");
+                String villagerSex = npc.getSex().isEmpty() ? "female" : npc.getSex();
+                if (conditionNotMet(player, !playerSex.equalsIgnoreCase(villagerSex), Messages.Message.PROCREATE_FAIL_SAME_SEX)) return;
+            }
 
             if (reputation < Config.REPUTATION_REQUIRED_TO_PROCREATE.asInt()) {
                 messages.send(player, npc, Messages.Message.PROCREATE_FAIL_LOW_REPUTATION);
@@ -510,7 +542,32 @@ public final class InventoryListeners implements Listener {
                     Config.WHO_CAN_MODIFY_VILLAGER_HOME,
                     true,
                     "realisticvillagers.bypass.sethome")) return;
-            handleExpecting(player, npc, ExpectingType.BED, Messages.Message.SELECT_BED, Messages.Message.SET_HOME_EXPECTING);
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            boolean holdingBed = !mainHand.getType().isAir() && mainHand.getType().name().endsWith("_BED");
+            if (holdingBed) {
+                // Mark one bed from the player's hand with the villager UUID
+                ItemStack markedBed = mainHand.clone();
+                markedBed.setAmount(1);
+                ItemMeta bedMeta = markedBed.getItemMeta();
+                if (bedMeta != null) {
+                    bedMeta.getPersistentDataContainer().set(
+                            plugin.getBedVillagerKey(), PersistentDataType.STRING,
+                            npc.bukkit().getUniqueId().toString());
+                    bedMeta.setDisplayName(PluginUtils.translate("&5" + npc.getVillagerName() + "'s Bed"));
+                    bedMeta.setLore(Collections.singletonList(PluginUtils.translate("&7Place to assign as home")));
+                    try { bedMeta.setEnchantmentGlintOverride(true); } catch (Throwable ignored) {}
+                    markedBed.setItemMeta(bedMeta);
+                }
+                if (mainHand.getAmount() > 1) {
+                    mainHand.setAmount(mainHand.getAmount() - 1);
+                    player.getInventory().addItem(markedBed);
+                } else {
+                    player.getInventory().setItemInMainHand(markedBed);
+                }
+                messages.send(player, Messages.Message.BED_MARKED, s -> s.replace("%villager-name%", npc.getVillagerName()));
+            } else {
+                messages.send(player, Messages.Message.SELECT_BED);
+            }
             closeInventory(player);
         } else if (isCustomItem(current, "divorce-papers")) {
             // If it's (ask) papers item, then the villager is INDEED a cleric.
@@ -711,13 +768,32 @@ public final class InventoryListeners implements Listener {
         IVillagerNPC other = expectingManager.get(playerUUID);
 
         // Another villager is expecting something from this player.
-        if (other != null && other.isExpecting()) {
-            messages.send(player, Messages.Message.valueOf("INTERACT_FAIL_OTHER_EXPECTING_" + other.getExpectingType()));
-            return;
+        if (other != null) {
+            LivingEntity otherBukkit = other.bukkit();
+            // Defensive cleanup: if the cached villager is no longer valid (unloaded/dead/wrong world
+            // after a world reset) remove the stale entry so the player isn't permanently blocked.
+            boolean stale = !other.isExpecting()
+                    || otherBukkit == null
+                    || !otherBukkit.isValid()
+                    || !otherBukkit.getWorld().equals(player.getWorld());
+            if (stale) {
+                expectingManager.remove(playerUUID);
+                // Always remove the cooldown on stale cleanup so the player is not left stranded.
+                plugin.getCooldownManager().removeCooldown(player, checkType.name().toLowerCase(Locale.ROOT));
+                if (other.isExpecting()) {
+                    other.stopExpecting();
+                }
+            } else {
+                messages.send(player, Messages.Message.valueOf("INTERACT_FAIL_OTHER_EXPECTING_" + other.getExpectingType()));
+                return;
+            }
         }
 
         // Player is in cooldown.
-        if (!plugin.getCooldownManager().canInteract(player, (Villager) npc.bukkit(), checkType.name().toLowerCase(Locale.ROOT))) {
+        // Use isOnCooldown (check-only) so we don't prematurely register a cooldown entry
+        // before the action actually completes – the real cooldown is added in handleVillagerPickUp
+        // (or the bed handler) after the gift/bed is successfully processed.
+        if (plugin.getCooldownManager().isOnCooldown(player, (Villager) npc.bukkit(), checkType.name().toLowerCase(Locale.ROOT))) {
             messages.send(player, Messages.Message.INTERACT_FAIL_IN_COOLDOWN);
             return;
         }

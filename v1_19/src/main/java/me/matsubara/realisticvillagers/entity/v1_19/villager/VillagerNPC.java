@@ -187,6 +187,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     private boolean wasInfected;
     private boolean shakingHead;
     private boolean equipped;
+    private boolean genderLocked;
     private boolean isAttackingWithTrident;
     private final Set<UUID> players = new HashSet<>();
     private ThrownTrident thrownTrident;
@@ -437,6 +438,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         villagerTag.putBoolean(OfflineVillagerNPC.IS_FATHER_VILLAGER, isFatherVillager);
         villagerTag.putBoolean(OfflineVillagerNPC.WAS_INFECTED, wasInfected);
         villagerTag.putBoolean(OfflineVillagerNPC.EQUIPPED, equipped);
+        villagerTag.putBoolean(OfflineVillagerNPC.GENDER_LOCKED, genderLocked);
         if (!shoulderEntityLeft.isEmpty()) {
             villagerTag.put(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT, shoulderEntityLeft);
         }
@@ -524,6 +526,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         mother = getFamily(villagerTag, OfflineVillagerNPC.MOTHER, true);
         wasInfected = villagerTag.getBoolean(OfflineVillagerNPC.WAS_INFECTED);
         equipped = villagerTag.getBoolean(OfflineVillagerNPC.EQUIPPED);
+        genderLocked = villagerTag.getBoolean(OfflineVillagerNPC.GENDER_LOCKED);
         if (villagerTag.contains(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT, 10)) {
             setShoulderEntityLeft(villagerTag.getCompound(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT));
         }
@@ -1262,6 +1265,32 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
             if (partnerNPC != null) this.partner = partnerNPC;
         } else {
             this.partner = dummyPlayerOffline(partner);
+        }
+    }
+
+    @Override
+    public void setParent(@Nullable IVillagerNPC parent) {
+        if (parent == null) return;
+        if (parent.isMale()) {
+            setFather(parent.getUniqueId(), true);
+        } else {
+            this.mother = parent.getOffline();
+        }
+        parent.getChildrens().add(getOffline());
+    }
+
+    @Override
+    public void setFather(@Nullable UUID father, boolean isFatherVillager) {
+        this.isFatherVillager = isFatherVillager;
+        if (father == null) {
+            this.father = null;
+            return;
+        }
+        if (isFatherVillager) {
+            IVillagerNPC fatherNPC = plugin.getTracker().getOffline(father);
+            if (fatherNPC != null) this.father = fatherNPC;
+        } else {
+            this.father = dummyPlayerOffline(father);
         }
     }
 
@@ -2077,6 +2106,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public void stopExpecting() {
         startExpectingFrom(null, null, 0);
         giftDropped = false;
+        getNavigation().stop();
     }
 
     public boolean isStayingInPlace() {

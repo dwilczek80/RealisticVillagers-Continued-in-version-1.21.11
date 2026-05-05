@@ -39,13 +39,12 @@ public final class Messages {
 
     public Messages(@NotNull RealisticVillagers plugin) {
         this.plugin = plugin;
-        this.plugin.saveResource("messages.yml");
+        this.plugin.saveResource("messages.yml", true);
     }
 
     public void sendRandomGiftMessage(Player player, IVillagerNPC npc, @Nullable GiftCategory category) {
-        InteractionTargetType target = InteractionTargetType.getInteractionTarget(npc, player);
-        String type = category != null ? ".success." + category.name() : ".fail";
-        send(player, npc, getRandomMessage("gift." + target.getName() + type));
+        String path = category != null ? "gift." + category.lowerName() : "gift.bad";
+        send(player, npc, getRandomMessage(path));
     }
 
     public void sendRandomInteractionMessage(Player player, IVillagerNPC npc, @NotNull GUIInteractType interactType, boolean success) {
@@ -193,6 +192,7 @@ public final class Messages {
         SET_HOME_FAIL("set-home.fail"),
         PROCREATE_FAIL_HAS_BABY("procreate.fail.has-baby"),
         PROCREATE_FAIL_LOW_REPUTATION("procreate.fail.low-reputation"),
+        PROCREATE_FAIL_SAME_SEX("procreate.fail.same-sex"),
         PROCREATE_COOLDOWN("procreate.cooldown"),
         BABY_GROW,
         BABY_CAN_NOT_SPAWN,
@@ -205,6 +205,13 @@ public final class Messages {
         BED_OCCUPIED,
         BED_ESTABLISHED,
         BED_INVALID,
+        BED_MARKED("bed-marked"),
+        GENDER_CHANGED("gender.changed"),
+        GENDER_LOCKED("gender.locked"),
+        GENDER_NO_VILLAGER("gender.no-villager"),
+        GENDER_INVALID("gender.invalid"),
+        PLAYER_GENDER_SET("player-gender.set"),
+        PLAYER_GENDER_ALREADY("player-gender.already"),
         INTERACT_FAIL_FIGHTING_OR_RAID("interact-fail.fighting-or-raid"),
         INTERACT_FAIL_PROCREATING("interact-fail.procreating"),
         INTERACT_FAIL_EXPECTING_GIFT_FROM_YOU("interact-fail.expecting-gift-from-you"),
@@ -226,6 +233,7 @@ public final class Messages {
         INTERACT_FAIL_ALREADY_ALIVE("interact-fail.already-alive"),
         GIFT_EXPECTING("gift.expecting"),
         GIFT_EXPECTING_FAIL("gift.expecting-fail"),
+        GIFT_COOLDOWN("gift.cooldown"),
         RIGHT_CLICK_GIFT,
         THROW_GIFT,
         SELECT_BED,

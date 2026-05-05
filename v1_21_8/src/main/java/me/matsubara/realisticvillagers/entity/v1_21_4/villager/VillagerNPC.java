@@ -200,6 +200,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     private boolean wasInfected;
     private boolean shakingHead;
     private boolean equipped;
+    private boolean genderLocked;
     private boolean isAttackingWithTrident;
     private final Set<UUID> players = new HashSet<>();
     private ThrownTrident thrownTrident;
@@ -498,6 +499,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         mother = OfflineVillagerNPC.get(offline, OfflineVillagerNPC::getMother);
         wasInfected = offline != null && offline.isWasInfected();
         equipped = offline != null && offline.isEquipped();
+        genderLocked = offline != null && offline.isGenderLocked();
         shoulderEntityLeft = offline != null && offline.validShoulderEntityLeft() ?
                 (CompoundTag) offline.getShoulderEntityLeft() :
                 new CompoundTag();
@@ -1198,6 +1200,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 bedHome,
                 wasInfected,
                 equipped,
+                genderLocked,
                 foodData.getFoodLevel(),
                 foodData.getTickTimer(),
                 foodData.getSaturationLevel(),
@@ -1274,6 +1277,17 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 this::isPartnerVillager,
                 this::setPartner,
                 this::setPartnerVillager);
+    }
+
+    @Override
+    public void setParent(@Nullable IVillagerNPC parent) {
+        if (parent == null) return;
+        if (parent.isMale()) {
+            setFather(parent.getUniqueId(), true);
+        } else {
+            setMother(parent.getOffline());
+        }
+        parent.getChildrens().add(getOffline());
     }
 
     public void setFather(@Nullable UUID father, boolean isFatherVillager) {
@@ -2087,6 +2101,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public void stopExpecting() {
         startExpectingFrom(null, null, 0);
         giftDropped = false;
+        getNavigation().stop();
     }
 
     public boolean isStayingInPlace() {

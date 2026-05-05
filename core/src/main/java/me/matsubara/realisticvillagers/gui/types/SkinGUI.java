@@ -104,9 +104,14 @@ public class SkinGUI extends PaginatedGUI {
             ConfigurationSection section = config.getConfigurationSection("none");
             if (section == null) return Collections.emptyList();
 
+            // If viewing baby skins but no for-babies entries exist, fall back to adult skins.
+            boolean hasBabySkins = !isAdult && section.getKeys(false).stream()
+                    .anyMatch(k -> config.getBoolean("none." + k + ".for-babies"));
+            boolean filterAsAdult = isAdult || !hasBabySkins;
+
             List<ItemStack> heads = new ArrayList<>();
             for (String skinId : section.getKeys(false).stream().sorted(Comparator.comparingInt(Integer::parseInt)).toList()) {
-                ItemStack skinItem = createSkinItem(plugin, config, sex, isAdult, Integer.parseInt(skinId), keyword);
+                ItemStack skinItem = createSkinItem(plugin, config, sex, filterAsAdult, Integer.parseInt(skinId), keyword);
                 if (skinItem != null) heads.add(skinItem);
             }
             return heads;

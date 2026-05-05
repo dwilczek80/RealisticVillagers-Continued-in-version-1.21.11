@@ -191,6 +191,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     private boolean wasInfected;
     private boolean shakingHead;
     private boolean equipped;
+    private boolean genderLocked;
     private boolean isAttackingWithTrident;
     private final Set<UUID> players = new HashSet<>();
     private ThrownTrident thrownTrident;
@@ -435,6 +436,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         villagerTag.putBoolean(OfflineVillagerNPC.IS_FATHER_VILLAGER, isFatherVillager);
         villagerTag.putBoolean(OfflineVillagerNPC.WAS_INFECTED, wasInfected);
         villagerTag.putBoolean(OfflineVillagerNPC.EQUIPPED, equipped);
+        villagerTag.putBoolean(OfflineVillagerNPC.GENDER_LOCKED, genderLocked);
         if (!shoulderEntityLeft.isEmpty()) {
             villagerTag.put(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT, shoulderEntityLeft);
         }
@@ -522,6 +524,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         mother = getFamily(villagerTag, OfflineVillagerNPC.MOTHER, true);
         wasInfected = villagerTag.getBoolean(OfflineVillagerNPC.WAS_INFECTED);
         equipped = villagerTag.getBoolean(OfflineVillagerNPC.EQUIPPED);
+        genderLocked = villagerTag.getBoolean(OfflineVillagerNPC.GENDER_LOCKED);
         if (villagerTag.contains(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT, 10)) {
             setShoulderEntityLeft(villagerTag.getCompound(OfflineVillagerNPC.SHOULDER_ENTITY_LEFT));
         }
@@ -1295,6 +1298,17 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 this::isFatherVillager,
                 this::setFather,
                 this::setFatherVillager);
+    }
+
+    @Override
+    public void setParent(@Nullable IVillagerNPC parent) {
+        if (parent == null) return;
+        if (parent.isMale()) {
+            setFather(parent.getUniqueId(), true);
+        } else {
+            setMother(parent.getOffline());
+        }
+        parent.getChildrens().add(getOffline());
     }
 
     private void setRelationship(@Nullable UUID who,
@@ -2137,6 +2151,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public void stopExpecting() {
         startExpectingFrom(null, null, 0);
         giftDropped = false;
+        getNavigation().stop();
     }
 
     public boolean isStayingInPlace() {

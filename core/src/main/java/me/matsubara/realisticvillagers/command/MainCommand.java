@@ -23,8 +23,10 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.AbstractHorse;
 import org.bukkit.entity.AbstractVillager;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Villager;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
@@ -56,6 +58,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             "give-divorce-papers",
             "give-cross",
             "force-divorce",
+            "genderset",
             "add-skin",
             "set-skin",
             "skins");
@@ -68,6 +71,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             "&e/rv give-divorce-papers [player] &f- &7Gives divorce papers.",
             "&e/rv give-cross [player] &f- &7Gives a cross.",
             "&e/rv force-divorce [player] &f- &7Forces the divorce of a player.",
+            "&e/rv genderset <player> <male|female> &f- &7Sets the gender of the villager a player is looking at (admin).",
             "&e/rv add-skin <sex> <age-stage> <texture> <signature> &f- &7Add a new skin (from the console).",
             "&e/rv set-skin <sex> <id> &f- &7Gives you an item to change the skin of a villager.",
             "&e/rv skins [sex] [age-stage] [page] &f- &7Manage all skins.",
@@ -99,6 +103,48 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         if (subCommand.equalsIgnoreCase("force-divorce")) {
             if (notAllowed(sender, "realisticvillagers.forcedivorce")) return true;
             handleForceDivorce(sender, args);
+            return true;
+        }
+
+        if (subCommand.equalsIgnoreCase("genderset")) {
+            if (notAllowed(sender, "realisticvillagers.genderset")) return true;
+            if (args.length < 3) {
+                messages.send(sender, Messages.Message.GENDER_INVALID);
+                return true;
+            }
+            String targetName = args[1];
+            String newSex = args[2].toLowerCase(Locale.ROOT);
+            if (!newSex.equals("male") && !newSex.equals("female")) {
+                messages.send(sender, Messages.Message.GENDER_INVALID);
+                return true;
+            }
+            Player target = Bukkit.getPlayerExact(targetName);
+            if (target == null) {
+                messages.send(sender, Messages.Message.UNKNOWN_PLAYER);
+                return true;
+            }
+            Villager targetVillager = target.getNearbyEntities(5, 5, 5).stream()
+                    .filter(e -> e instanceof Villager)
+                    .map(e -> (Villager) e)
+                    .min((a, b) -> Double.compare(
+                            a.getLocation().distanceSquared(target.getLocation()),
+                            b.getLocation().distanceSquared(target.getLocation())))
+                    .orElse(null);
+            if (targetVillager == null) {
+                messages.send(sender, Messages.Message.GENDER_NO_VILLAGER);
+                return true;
+            }
+            IVillagerNPC npc = plugin.getConverter().getNPC(targetVillager).orElse(null);
+            if (npc == null) {
+                messages.send(sender, Messages.Message.GENDER_NO_VILLAGER);
+                return true;
+            }
+            npc.setSex(newSex);
+            npc.setGenderLocked(true);
+            npc.setSkinTextureId(-1);
+            tracker.refreshNPCSkin(targetVillager, false);
+            messages.send(sender, Messages.Message.GENDER_CHANGED,
+                    s -> s.replace("%villager-name%", npc.getVillagerName()).replace("%gender%", newSex));
             return true;
         }
 
@@ -412,12 +458,21 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2) {
+            // genderset requires a player name at arg[1].
+            if (args[0].equalsIgnoreCase("genderset")) {
+                return sender.hasPermission("realisticvillagers.genderset") ? null : Collections.emptyList();
+            }
             // These require the sex list.
             if (SEX_USERS.contains(args[0].toLowerCase(Locale.ROOT))) {
                 return StringUtil.copyPartialMatches(args[1], SEX_LIST, new ArrayList<>());
             }
             // give_(item) & force-divorce require a player, so null will give a list with online players; empty list for reload or unknown subcommand.
             return args[0].equalsIgnoreCase("reload") || !COMMAND_ARGS.contains(args[0]) ? Collections.emptyList() : null;
+        }
+
+        // rv genderset <player> <male|female>
+        if (args.length == 3 && args[0].equalsIgnoreCase("genderset")) {
+            return StringUtil.copyPartialMatches(args[2], SEX_LIST, new ArrayList<>());
         }
 
         // rv set-skin <sex> <id>
@@ -465,9 +520,15 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         if (section == null) return -1;
 
         Set<String> keys = section.getKeys(false);
+
+        // If browsing baby skins but no for-babies entries exist, fall back to adult skins.
+        boolean hasBabySkins = !isAdult && keys.stream()
+                .anyMatch(k -> config.getBoolean("none." + k + ".for-babies"));
+        boolean filterAsAdult = isAdult || !hasBabySkins;
+
         keys.removeIf(key -> {
             boolean forBabies = config.getBoolean("none." + key + ".for-babies");
-            return (isAdult && forBabies) || (!isAdult && !forBabies);
+            return (filterAsAdult && forBabies) || (!filterAsAdult && !forBabies);
         });
 
         int pages = (int) (Math.ceil((double) keys.size() / skins));

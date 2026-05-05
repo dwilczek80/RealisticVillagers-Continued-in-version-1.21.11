@@ -137,7 +137,7 @@ public class MonumentAnimation extends BukkitRunnable {
         // Spawn angry particles above the lightning flame.
         ThreadLocalRandom random = ThreadLocalRandom.current();
         world.spawnParticle(
-                Particle.VILLAGER_ANGRY,
+                Particle.ANGRY_VILLAGER,
                 target.clone().add(0.5d, 1.5d, 0.5d),
                 1,
                 random.nextGaussian() * 0.02d,

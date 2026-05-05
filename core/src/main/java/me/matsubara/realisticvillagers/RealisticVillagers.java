@@ -11,6 +11,7 @@ import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import me.matsubara.realisticvillagers.command.GenderCommand;
 import me.matsubara.realisticvillagers.command.MainCommand;
 import me.matsubara.realisticvillagers.compatibility.*;
 import me.matsubara.realisticvillagers.data.ItemLoot;
@@ -26,7 +27,6 @@ import me.matsubara.realisticvillagers.manager.ChestManager;
 import me.matsubara.realisticvillagers.manager.ExpectingManager;
 import me.matsubara.realisticvillagers.manager.InteractCooldownManager;
 import me.matsubara.realisticvillagers.manager.gift.Gift;
-import me.matsubara.realisticvillagers.manager.gift.GiftCategory;
 import me.matsubara.realisticvillagers.manager.gift.GiftManager;
 import me.matsubara.realisticvillagers.manager.revive.ReviveManager;
 import me.matsubara.realisticvillagers.nms.INMSConverter;
@@ -88,6 +88,8 @@ public final class RealisticVillagers extends JavaPlugin {
     private final NamespacedKey childSexKey = key("ChildSex");
     private final NamespacedKey zombieTransformKey = key("ZombieTransform");
     private final NamespacedKey fishedKey = key("Fished");
+    private final NamespacedKey bedVillagerKey = key("BedVillager");
+    private final NamespacedKey playerSexKey = key("PlayerSex");
 
     @ApiStatus.Internal
     private final @Getter(AccessLevel.NONE) NamespacedKey valuesKey = key("RValues"); // New main key.
@@ -320,6 +322,13 @@ public final class RealisticVillagers extends JavaPlugin {
         MainCommand main = new MainCommand(this);
         command.setExecutor(main);
         command.setTabCompleter(main);
+
+        PluginCommand genderCmd = getCommand("gender");
+        if (genderCmd != null) {
+            GenderCommand gender = new GenderCommand(this);
+            genderCmd.setExecutor(gender);
+            genderCmd.setTabCompleter(gender);
+        }
 
         logLoadingTime(false, now);
 
@@ -840,9 +849,8 @@ public final class RealisticVillagers extends JavaPlugin {
 
     public void reloadWantedItems() {
         wantedItems.clear();
-
-        Set<Gift> wanted = giftManager.getGiftsFromCategory("default-wanted-items");
-        wantedItems.addAll(wanted);
+        // In the new system every entry in gifts.items is a potential wanted item.
+        wantedItems.addAll(giftManager.getAllGifts());
     }
 
     public void reloadLoots() {
@@ -868,8 +876,12 @@ public final class RealisticVillagers extends JavaPlugin {
     }
 
     public Gift getWantedItem(IVillagerNPC npc, ItemStack item, boolean isItemPickup) {
-        // Not really a gift, but we use the same system.
-        return GiftCategory.appliesToVillager(wantedItems, npc, item, isItemPickup);
+        for (Gift wanted : wantedItems) {
+            if (!wanted.is(item.getType())) continue;
+            if (isItemPickup && wanted.isInventoryLootOnly()) continue;
+            return wanted;
+        }
+        return null;
     }
 
     public @Nullable LivingEntity getUnloadedOffline(@NotNull IVillagerNPC offline) {

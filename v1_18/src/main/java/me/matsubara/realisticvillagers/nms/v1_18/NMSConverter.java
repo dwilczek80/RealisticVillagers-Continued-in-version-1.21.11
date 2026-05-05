@@ -222,22 +222,29 @@ public class NMSConverter implements INMSConverter {
         baby.setAge(-24000);
         baby.moveTo(location.getX(), location.getY(), location.getZ(), 0.0f, 0.0f);
 
-        // Shouldn't be null unless the mother is dead.
-        IVillagerNPC mother = plugin.getTracker().getOffline(motherUUID);
-        if (mother != null) {
-            org.bukkit.entity.LivingEntity bukkitMother = plugin.getUnloadedOffline(mother);
+        // Partner can be the mother (female villager) or the father (male, when ignore-sex is enabled).
+        IVillagerNPC partner = plugin.getTracker().getOffline(motherUUID);
+        if (partner != null) {
+            org.bukkit.entity.LivingEntity bukkitPartner = plugin.getUnloadedOffline(partner);
 
-            VillagerNPC nmsMother = bukkitMother != null ? ((VillagerNPC) ((CraftVillager) bukkitMother).getHandle()) : null;
-            if (nmsMother != null) {
-                nmsMother.setAge(6000);
-                nmsMother.getChildrens().add(baby.getOffline());
-                baby.setMother(nmsMother.getOffline());
+            VillagerNPC nmsPartner = bukkitPartner != null ? ((VillagerNPC) ((CraftVillager) bukkitPartner).getHandle()) : null;
+            if (nmsPartner != null) {
+                nmsPartner.setAge(6000);
+                nmsPartner.getChildrens().add(baby.getOffline());
+                if (nmsPartner.isFemale()) {
+                    baby.setMother(nmsPartner.getOffline());
+                } else {
+                    baby.setFather(nmsPartner.getOffline());
+                    baby.setFatherVillager(true);
+                }
             }
         }
 
         UUID fatherUUID = father.getUniqueId();
-        baby.setFather(VillagerNPC.dummyPlayerOffline(fatherUUID));
-        baby.setFatherVillager(false);
+        if (partner == null || partner.isFemale()) {
+            baby.setFather(VillagerNPC.dummyPlayerOffline(fatherUUID));
+            baby.setFatherVillager(false);
+        }
 
         GossipContainer gossips = baby.getGossips();
         for (GossipType gossipType : GossipType.values()) {

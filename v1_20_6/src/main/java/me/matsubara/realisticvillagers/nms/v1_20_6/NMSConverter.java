@@ -6,6 +6,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import me.matsubara.realisticvillagers.RealisticVillagers;
+import me.matsubara.realisticvillagers.data.serialization.OfflineDataWrapper;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.entity.v1_20_6.WanderingTraderNPC;
 import me.matsubara.realisticvillagers.entity.v1_20_6.pet.PetCat;
@@ -72,6 +73,9 @@ import org.bukkit.craftbukkit.v1_20_R4.block.CraftBlock;
 import org.bukkit.craftbukkit.v1_20_R4.entity.CraftEntity;
 import org.bukkit.craftbukkit.v1_20_R4.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R4.entity.CraftVillager;
+import org.bukkit.craftbukkit.v1_20_R4.persistence.CraftPersistentDataAdapterContext;
+import org.bukkit.craftbukkit.v1_20_R4.persistence.CraftPersistentDataContainer;
+import org.bukkit.craftbukkit.v1_20_R4.persistence.CraftPersistentDataTypeRegistry;
 import org.bukkit.entity.AbstractVillager;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.ZombieVillager;
@@ -101,6 +105,8 @@ public class NMSConverter implements INMSConverter {
     // Registry fields.
     private static final MethodHandle INSTRUSIVE_HOLDER_CACHE = Reflection.getField(MappedRegistry.class, Map.class, "m", false, "unregisteredIntrusiveHolders");
     private static final MethodHandle FROZEN = Reflection.getField(MappedRegistry.class, boolean.class, "l", false, "frozen");
+    private static final CraftPersistentDataTypeRegistry REGISTRY = new CraftPersistentDataTypeRegistry();
+    private static final CraftPersistentDataAdapterContext ADAPTER_CONTEXT = new CraftPersistentDataAdapterContext(REGISTRY);
     private static final MethodHandle ATTRIBUTES = Reflection.getField(AttributeMap.class, Map.class, "b", true, "attributes");
 
     // Constructors.
@@ -221,21 +227,27 @@ public class NMSConverter implements INMSConverter {
         baby.setAge(-24000);
         baby.moveTo(location.getX(), location.getY(), location.getZ(), 0.0f, 0.0f);
 
-        // Shouldn't be null unless the mother is dead.
-        IVillagerNPC mother = plugin.getTracker().getOffline(motherUUID);
-        if (mother != null) {
-            org.bukkit.entity.LivingEntity bukkitMother = plugin.getUnloadedOffline(mother);
+        // Partner can be the mother (female villager) or the father (male, when ignore-sex is enabled).
+        IVillagerNPC partner = plugin.getTracker().getOffline(motherUUID);
+        if (partner != null) {
+            org.bukkit.entity.LivingEntity bukkitPartner = plugin.getUnloadedOffline(partner);
 
-            VillagerNPC nmsMother = bukkitMother != null ? ((VillagerNPC) ((CraftVillager) bukkitMother).getHandle()) : null;
-            if (nmsMother != null) {
-                nmsMother.setAge(6000);
-                nmsMother.getChildrens().add(baby.getOffline());
-                baby.setMother(nmsMother.getOffline());
+            VillagerNPC nmsPartner = bukkitPartner != null ? ((VillagerNPC) ((CraftVillager) bukkitPartner).getHandle()) : null;
+            if (nmsPartner != null) {
+                nmsPartner.setAge(6000);
+                nmsPartner.getChildrens().add(baby.getOffline());
+                if (nmsPartner.isFemale()) {
+                    baby.setMother(nmsPartner.getOffline());
+                } else {
+                    baby.setFather(nmsPartner.getUniqueId(), true);
+                }
             }
         }
 
         UUID fatherUUID = father.getUniqueId();
-        baby.setFather(fatherUUID, false);
+        if (partner == null || partner.isFemale()) {
+            baby.setFather(fatherUUID, false);
+        }
 
         GossipContainer gossips = baby.getGossips();
         for (GossipType gossipType : GossipType.values()) {
@@ -612,6 +624,28 @@ public class NMSConverter implements INMSConverter {
                 && !(vehicle instanceof Boat)
                 && !(vehicle instanceof Minecart)) {
             entity.stopRiding();
+        }
+    }
+
+    @Override
+    public @Nullable OfflineDataWrapper getNPCFromPDC(org.bukkit.persistence.PersistentDataContainer container, org.bukkit.NamespacedKey key) {
+        try {
+            Tag values = ((CraftPersistentDataContainer) container).toTagCompound().get(key.toString());
+            if (!(values instanceof ByteArrayTag byteArrayTag)) return null;
+            byte[] primitive = byteArrayTag.getAsByteArray();
+            OfflineDataWrapper wrapper = RealisticVillagers.villagerDataFromPrimitive(primitive, ADAPTER_CONTEXT);
+            if (wrapper != null) return wrapper;
+            String raw = new String(primitive, java.nio.charset.StandardCharsets.UTF_8);
+            String patched = raw.replaceAll(
+                "me\\.matsubara\\.realisticvillagers\\.entity\\.v1_21_[^.]+\\.villager\\.OfflineVillagerNPC",
+                OfflineDataWrapper.class.getName());
+            if (!patched.equals(raw)) {
+                return RealisticVillagers.villagerDataFromPrimitive(
+                    patched.getBytes(java.nio.charset.StandardCharsets.UTF_8), ADAPTER_CONTEXT);
+            }
+            return null;
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }
