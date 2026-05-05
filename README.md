@@ -1,7 +1,4 @@
 <div align="center">
-
-![Realistic Villagers Banner](file:///C:/Users/dwilc/.gemini/antigravity/brain/9ad44297-3898-43ae-8caa-4ed034badf41/realistic_villagers_banner_1778021981218.png)
-
 # 🏘️ Realistic Villagers
 **Transform your static villages into a living, breathing civilization.**
 
@@ -12,7 +9,7 @@
 </div>
 
 ## 📖 The Vision
-Forget the days of "Hrmmm" and blank stares. **Realistic Villagers** is the ultimate overhaul for Minecraft villagers. By replacing standard entities with dynamic, skin-aware NPCs, we bring a level of depth and immersion previously unseen. Whether it's building a family legacy, managing complex trades, or defending your home, every villager has a story.
+Forget the days of "Hmmmm" and blank stares. **Realistic Villagers** is the ultimate overhaul for Minecraft villagers. By replacing standard entities with dynamic, skin-aware NPCs, we bring a level of depth and immersion previously unseen. Whether it's building a family legacy, managing complex trades, or defending your home, every villager has a story.
 
 ---
 
@@ -54,6 +51,23 @@ Forget the days of "Hrmmm" and blank stares. **Realistic Villagers** is the ulti
 | `/rv reload` | Hot-reload all configurations and messages. |
 | `/rv skins` | Manage and preview NPC skin categories. |
 | `/rv genderset <p> <g>` | Admin command to override player gender. |
+
+---
+
+## ⚙️ Configuration
+
+The plugin is highly customizable. You can toggle almost every feature in `config.yml`:
+
+```yaml
+# procreation settings
+procreation-cooldown: 6000
+baby-grow-cooldown: 12000
+
+# Social settings
+villager-farm:
+  allow-procreation-between-family-members: false
+  ignore-sex-when-procreating: false
+```
 
 ---
 
