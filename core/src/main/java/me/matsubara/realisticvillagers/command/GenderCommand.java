@@ -35,10 +35,7 @@ public class GenderCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (!player.hasPermission("realisticvillagers.gender")) {
-            messages.send(sender, Messages.Message.NO_PERMISSION);
-            return true;
-        }
+
 
         if (args.length < 1) {
             messages.send(sender, Messages.Message.GENDER_INVALID);
@@ -69,7 +66,6 @@ public class GenderCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, @NotNull String[] args) {
-        if (!sender.hasPermission("realisticvillagers.gender")) return Collections.emptyList();
         if (args.length == 1) return StringUtil.copyPartialMatches(args[0], SEX_LIST, new ArrayList<>());
         return Collections.emptyList();
     }
