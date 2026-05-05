@@ -122,6 +122,21 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         VillagerTracker tracker = plugin.getTracker();
         if (tracker.isInvalid(villager)) return;
 
+        // If the profession didn't change, this is a trade level-up.
+        // Don't refresh the NPC skin — just update the nametag to reflect the new level.
+        Villager.Profession currentProfession = villager.getProfession();
+        Villager.Profession newProfession = event.getProfession();
+        if (currentProfession == newProfession) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                tracker.getNPC(villager.getEntityId()).ifPresent(npc -> {
+                    for (org.bukkit.entity.Player player : npc.getSeeingPlayers()) {
+                        npc.refreshNametags(player);
+                    }
+                });
+            }, 15L);
+            return;
+        }
+
         // Update villager skin when changing a job after 1 tick since this event is called before changing a job.
         // Respawn NPC with the new profession texture.
         plugin.getServer().getScheduler().runTask(plugin, () -> tracker.refreshNPCSkin(villager, true));
