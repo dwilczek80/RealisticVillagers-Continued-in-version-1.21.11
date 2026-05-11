@@ -250,7 +250,7 @@ public class LootChest extends Behavior<Villager> implements Exchangeable {
 
         // Only shuffle at last item and if villager is a nitwit.
         if (items.isEmpty()
-                && npc.is(VillagerProfession.NITWIT)
+                && npc.isProfession(VillagerProfession.NITWIT)
                 && Config.LOOT_CHEST_NITWIT_SHUFFLE_INVENTORY.asBool()) {
             List<ItemStack> contents = new ArrayList<>();
             Collections.addAll(contents, inventory.getContents());

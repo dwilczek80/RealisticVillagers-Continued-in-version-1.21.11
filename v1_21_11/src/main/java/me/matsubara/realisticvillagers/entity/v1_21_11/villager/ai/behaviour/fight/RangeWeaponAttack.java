@@ -21,6 +21,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import org.bukkit.craftbukkit.v1_21_R7.enchantments.CraftEnchantment;
 import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,10 +45,21 @@ public class RangeWeaponAttack extends Behavior<Villager> {
     @Override
     public boolean checkExtraStartConditions(ServerLevel level, Villager villager) {
         LivingEntity target = getAttackTarget(villager);
-        return isHoldingUsableProjectileWeapon(villager)
+        return target != null
+                && isHoldingUsableProjectileWeapon(villager)
                 && BlockAttackWithShield.notUsingShield(villager)
                 && BehaviorUtils.canSee(villager, target)
-                && BehaviorUtils.isWithinAttackRange(villager, target, 0);
+                && isWithinRangedAttackRange(villager, target);
+    }
+
+    /**
+     * Check if target is within reasonable ranged attack distance.
+     * Bow effective range: ~15 blocks. Crossbow: ~12 blocks.
+     * Much larger than melee attack range (~3 blocks) that vanilla checks.
+     */
+    private boolean isWithinRangedAttackRange(@NotNull Villager villager, @NotNull LivingEntity target) {
+        float rangeSq = villager.isHolding(Items.CROSSBOW) ? 12.0f * 12.0f : 15.0f * 15.0f;
+        return villager.distanceToSqr(target) <= rangeSq;
     }
 
     private boolean isHoldingUsableProjectileWeapon(@NotNull Villager villager) {
@@ -75,7 +87,10 @@ public class RangeWeaponAttack extends Behavior<Villager> {
     @Override
     public void tick(ServerLevel level, Villager villager, long time) {
         LivingEntity target = getAttackTarget(villager);
+        if (target == null) return;
+
         lookAtTarget(villager, target);
+        // Stop walking while attacking — removed erasure to allow concurrent movement logic
         crossbowAttack((VillagerNPC) villager, target);
     }
 
@@ -188,10 +203,8 @@ public class RangeWeaponAttack extends Behavior<Villager> {
         mob.getBrain().setMemory(MemoryModuleType.LOOK_TARGET, new EntityTracker(target, true));
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    private @NotNull LivingEntity getAttackTarget(@NotNull LivingEntity target) {
-        // Can't be null since the value should be present in the constructor.
-        return target.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).get();
+    private @Nullable LivingEntity getAttackTarget(@NotNull LivingEntity target) {
+        return target.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
     }
 
     enum CrossbowState {

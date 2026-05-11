@@ -161,7 +161,8 @@ public class VillagerNPCGoalPackages {
                         (npc, living) -> living instanceof PetWolf wolf && !wolf.isTame() && !wolf.isAngry(),
                         ImmutableSet.of(Items.BONE))),
                 Pair.of(10, new HealGolem(100, VillagerNPC.WALK_SPEED.get())),
-                Pair.of(10, new HelpFamily(100, VillagerNPC.WALK_SPEED.get())));
+                Pair.of(10, new HelpFamily(100, VillagerNPC.WALK_SPEED.get())),
+                Pair.of(99, updateActivityFromSchedule()));
     }
 
     private static boolean validateBedPoi(@NotNull ServerLevel level, BlockPos pos) {
@@ -203,10 +204,12 @@ public class VillagerNPCGoalPackages {
 
     @Contract(" -> new")
     public static @NotNull BehaviorControl<LivingEntity> updateActivityFromSchedule() {
-        return BehaviorBuilder.create((instance) -> instance.point((level, living, time) -> {
-            updateActivityFromSchedule(level, living);
-            return true;
-        }));
+        return BehaviorBuilder.create((instance) -> instance
+                .group(instance.absent(MemoryModuleType.ATTACK_TARGET))
+                .apply(instance, (target) -> (level, living, time) -> {
+                    updateActivityFromSchedule(level, living);
+                    return true;
+                }));
     }
 
     private static void updateActivityFromSchedule(Level level, LivingEntity living) {

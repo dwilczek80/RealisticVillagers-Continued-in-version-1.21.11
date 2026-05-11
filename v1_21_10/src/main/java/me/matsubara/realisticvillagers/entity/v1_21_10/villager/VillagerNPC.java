@@ -75,6 +75,7 @@ import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.behavior.BehaviorControl;
 import net.minecraft.world.entity.ai.behavior.GateBehavior;
+import net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom;
 import net.minecraft.world.entity.ai.behavior.ShufflingList;
 import net.minecraft.world.entity.ai.behavior.VillagerGoalPackages;
 import net.minecraft.world.entity.ai.gossip.GossipContainer;
@@ -394,7 +395,11 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 ImmutableSet.of(Pair.of(MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT)));
         brain.addActivity(Activity.REST, VillagerNPCGoalPackages.getRestPackage());
         brain.addActivity(Activity.IDLE, VillagerNPCGoalPackages.getIdlePackage());
-        brain.addActivity(Activity.PANIC, VillagerGoalPackages.getPanicPackage(holder, VillagerNPC.WALK_SPEED.get()));
+        com.google.common.collect.ImmutableList<com.mojang.datafixers.util.Pair<Integer, ? extends net.minecraft.world.entity.ai.behavior.BehaviorControl<? super Villager>>> vanillaPanic = VillagerGoalPackages.getPanicPackage(holder, VillagerNPC.WALK_SPEED.get());
+        java.util.List<com.mojang.datafixers.util.Pair<Integer, ? extends net.minecraft.world.entity.ai.behavior.BehaviorControl<? super Villager>>> customPanic = new java.util.ArrayList<>(vanillaPanic);
+        customPanic.add(com.mojang.datafixers.util.Pair.of(1, net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom.entity(net.minecraft.world.entity.ai.memory.MemoryModuleType.NEAREST_HOSTILE, VillagerNPC.WALK_SPEED.get() * 1.5F, 24, false)));
+        customPanic.add(com.mojang.datafixers.util.Pair.of(4, net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom.entity(net.minecraft.world.entity.ai.memory.MemoryModuleType.NEAREST_HOSTILE, VillagerNPC.WALK_SPEED.get(), 32, false)));
+        brain.addActivity(net.minecraft.world.entity.schedule.Activity.PANIC, com.google.common.collect.ImmutableList.copyOf(customPanic));
         brain.addActivity(Activity.PRE_RAID, VillagerGoalPackages.getPreRaidPackage(holder, VillagerNPC.WALK_SPEED.get()));
         brain.addActivity(Activity.RAID, VillagerNPCGoalPackages.getRaidPackage());
         brain.addActivity(Activity.HIDE, VillagerNPCGoalPackages.getHidePackage());
@@ -644,7 +649,16 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     public boolean isHoldingMeleeWeapon() {
-        return isHolding(stack -> stack.is(ItemTags.SWORDS) || stack.is(ItemTags.AXES) || stack.is(Items.TRIDENT) || stack.is(Items.MACE));
+        return isHolding(stack -> ItemStackUtils.isMeleeWeapon(CraftItemStack.asBukkitCopy(stack)) || isCustomMeleeWeapon(stack));
+    }
+
+    private static boolean isCustomMeleeWeapon(net.minecraft.world.item.ItemStack stack) {
+        String materialName = CraftItemStack.asBukkitCopy(stack).getType().name();
+        if (materialName.endsWith("_SPEAR") || materialName.equals("SPEAR") || materialName.equals("MACE")) {
+            return true;
+        }
+        return Config.CUSTOM_MELEE_WEAPONS.asStringList().stream()
+                .anyMatch(name -> name.equalsIgnoreCase(materialName));
     }
 
     public boolean isHoldingRangeWeapon() {
@@ -852,7 +866,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         if (isInsideRaid()) return;
 
         Entity entity = source.getEntity();
-        if (!EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity)) return;
+        if (!(entity instanceof LivingEntity killer) || !EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity)) return;
 
         Optional<NearestVisibleLivingEntities> optional = getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES);
         if (optional.isEmpty()) return;
@@ -861,7 +875,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 .findAll(living -> living instanceof VillagerNPC npc && npc.canAttack() && npc.isFamily(getUUID(), true))
                 .forEach(living -> VillagerPanicTrigger.handleFightReaction(
                         ((Villager) living).getBrain(),
-                        (LivingEntity) entity,
+                        killer,
                         TargetReason.DEFEND));
     }
 
@@ -1662,8 +1676,8 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
             box = getBoundingBox();
         }
 
-        double xz = getMeleeAttackRangeSqr() / 2.5d;
-        return box.inflate(xz, 0.0, xz);
+        double reach = Math.sqrt(getMeleeAttackRangeSqr()) / 2.0d;
+        return box.inflate(reach, 0.25d, reach);
     }
 
     public int getMeleeAttackRangeSqr() {

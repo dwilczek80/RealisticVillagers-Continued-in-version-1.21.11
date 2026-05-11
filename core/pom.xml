@@ -28,6 +28,13 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
@@ -215,7 +222,7 @@
             <artifactId>EliteMobs</artifactId>
             <version>8.4.2</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/../libs/EliteMobs.jar</systemPath>
+            <systemPath>${maven.multiModuleProjectDirectory}/libs/EliteMobs.jar</systemPath>
         </dependency>
         <!-- VTL -->
         <dependency>
@@ -243,7 +250,7 @@
             <artifactId>packetevents-spigot</artifactId>
             <version>2.12.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/../libs/packetevents-spigot-2.12.0.jar</systemPath>
+            <systemPath>${maven.multiModuleProjectDirectory}/libs/packetevents-spigot-2.12.0.jar</systemPath>
         </dependency>
         <!-- MorePersistentDataTypes -->
         <dependency>

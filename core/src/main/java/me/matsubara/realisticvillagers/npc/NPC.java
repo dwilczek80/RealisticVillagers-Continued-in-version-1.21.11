@@ -57,14 +57,14 @@ public class NPC {
     private static final int IGNORE = -1;
     private static final int NO_BLOCK = -2;
     private static final boolean ENABLED = XReflection.supports(20, 2);
-    private static final Color NAMETAG_BACKGROUND_COLOR = ENABLED ? Color.fromARGB((int) (0.35 * 255), 0, 0, 0) : null;
+    private static final Color NAMETAG_BACKGROUND_COLOR = ENABLED ? Color.fromRGB(0, 0, 0) : null;
 
     public NPC(RealisticVillagers plugin, UserProfile profile, SpawnCustomizer spawnCustomizer, int entityId, IVillagerNPC npc) {
         this.plugin = plugin;
-        this.entityId = entityId;
-        this.spawnCustomizer = spawnCustomizer;
-        this.npc = npc;
         this.profile = profile;
+        this.spawnCustomizer = spawnCustomizer;
+        this.entityId = entityId;
+        this.npc = npc;
     }
 
     public void refreshNametags(Player player) {
@@ -193,7 +193,7 @@ public class NPC {
             data.add(new EntityData<>(23, EntityDataTypes.ADV_COMPONENT, Component.text(getNameTextFor(player)))); // Text
             data.add(new EntityData<>(24, EntityDataTypes.INT, 200)); // Line width
             // Background color = Color#asARGB() / 1073741824 / same as using the flag: default background.
-            data.add(new EntityData<>(25, EntityDataTypes.INT, NAMETAG_BACKGROUND_COLOR.asARGB()));
+            data.add(new EntityData<>(25, EntityDataTypes.INT, NAMETAG_BACKGROUND_COLOR != null ? NAMETAG_BACKGROUND_COLOR.asARGB() : 0));
             data.add(new EntityData<>(26, EntityDataTypes.BYTE, (byte) getOpacity())); // Text opacity
             // Flags (Has shadow = 0x01 / See through = 0x02 / Use default background color = 0x04 / Alignment = ?) / 0
             data.add(new EntityData<>(27, EntityDataTypes.BYTE, (byte) getFlags()));

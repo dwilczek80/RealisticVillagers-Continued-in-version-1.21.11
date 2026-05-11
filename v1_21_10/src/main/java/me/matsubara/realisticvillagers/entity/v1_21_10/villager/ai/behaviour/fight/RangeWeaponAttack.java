@@ -47,7 +47,12 @@ public class RangeWeaponAttack extends Behavior<Villager> {
         return isHoldingUsableProjectileWeapon(villager)
                 && BlockAttackWithShield.notUsingShield(villager)
                 && BehaviorUtils.canSee(villager, target)
-                && BehaviorUtils.isWithinAttackRange(villager, target, 0);
+                && isWithinRangedAttackRange(villager, target);
+    }
+
+    private boolean isWithinRangedAttackRange(@NotNull Villager villager, @NotNull LivingEntity target) {
+        float rangeSq = villager.isHolding(Items.CROSSBOW) ? 12.0f * 12.0f : 15.0f * 15.0f;
+        return villager.distanceToSqr(target) <= rangeSq;
     }
 
     private boolean isHoldingUsableProjectileWeapon(@NotNull Villager villager) {
@@ -76,6 +81,7 @@ public class RangeWeaponAttack extends Behavior<Villager> {
     public void tick(ServerLevel level, Villager villager, long time) {
         LivingEntity target = getAttackTarget(villager);
         lookAtTarget(villager, target);
+        // Stop walking while attacking — removed erasure to allow concurrent movement logic
         crossbowAttack((VillagerNPC) villager, target);
     }
 

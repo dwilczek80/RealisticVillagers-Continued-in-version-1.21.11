@@ -362,7 +362,11 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 ImmutableSet.of(Pair.of(MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT)));
         brain.addActivity(Activity.REST, VillagerNPCGoalPackages.getRestPackage());
         brain.addActivity(Activity.IDLE, VillagerNPCGoalPackages.getIdlePackage());
-        brain.addActivity(Activity.PANIC, VillagerGoalPackages.getPanicPackage(profession, VillagerNPC.WALK_SPEED.get()));
+        com.google.common.collect.ImmutableList<com.mojang.datafixers.util.Pair<Integer, ? extends net.minecraft.world.entity.ai.behavior.BehaviorControl<? super Villager>>> vanillaPanic = net.minecraft.world.entity.npc.VillagerGoalPackages.getPanicPackage(profession, VillagerNPC.WALK_SPEED.get());
+        java.util.List<com.mojang.datafixers.util.Pair<Integer, ? extends net.minecraft.world.entity.ai.behavior.BehaviorControl<? super Villager>>> customPanic = new java.util.ArrayList<>(vanillaPanic);
+        customPanic.add(com.mojang.datafixers.util.Pair.of(1, net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom.entity(net.minecraft.world.entity.ai.memory.MemoryModuleType.NEAREST_HOSTILE, VillagerNPC.WALK_SPEED.get() * 1.5F, 24, false)));
+        customPanic.add(com.mojang.datafixers.util.Pair.of(4, net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom.entity(net.minecraft.world.entity.ai.memory.MemoryModuleType.NEAREST_HOSTILE, VillagerNPC.WALK_SPEED.get(), 32, false)));
+        brain.addActivity(net.minecraft.world.entity.schedule.Activity.PANIC, com.google.common.collect.ImmutableList.copyOf(customPanic));
         brain.addActivity(Activity.PRE_RAID, VillagerGoalPackages.getPreRaidPackage(profession, VillagerNPC.WALK_SPEED.get()));
         brain.addActivity(Activity.RAID, VillagerNPCGoalPackages.getRaidPackage());
         brain.addActivity(Activity.HIDE, VillagerGoalPackages.getHidePackage(profession, SPRINT_SPEED.get()));
@@ -686,8 +690,17 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public boolean isHoldingMeleeWeapon() {
         return isHolding(stack -> {
             Item item = stack.getItem();
-            return item instanceof SwordItem || item instanceof AxeItem || stack.is(Items.TRIDENT);
+            return item instanceof SwordItem || item instanceof AxeItem || stack.is(Items.TRIDENT) || isCustomMeleeWeapon(stack);
         });
+    }
+
+    private static boolean isCustomMeleeWeapon(net.minecraft.world.item.ItemStack stack) {
+        String materialName = org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack.asBukkitCopy(stack).getType().name();
+        if (materialName.endsWith("_SPEAR") || materialName.equals("SPEAR") || materialName.equals("MACE")) {
+            return true;
+        }
+        return Config.CUSTOM_MELEE_WEAPONS.asStringList().stream()
+                .anyMatch(name -> name.equalsIgnoreCase(materialName));
     }
 
     public boolean isHoldingRangeWeapon() {
@@ -870,14 +883,17 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         if (isInsideRaid()) return;
 
         Entity entity = source.getEntity();
-        if (!EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity)) return;
+        if (!(entity instanceof LivingEntity killer) || !EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity)) return;
 
         Optional<NearestVisibleLivingEntities> optional = getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES);
         if (optional.isEmpty()) return;
 
         optional.get()
                 .findAll(living -> living instanceof VillagerNPC npc && npc.canAttack() && npc.isFamily(getUUID(), true))
-                .forEach(living -> VillagerPanicTrigger.handleFightReaction(((Villager) living).getBrain(), (LivingEntity) entity));
+                .forEach(living -> VillagerPanicTrigger.handleFightReaction(
+                        ((Villager) living).getBrain(),
+                        killer,
+                        TargetReason.DEFEND));
     }
 
     @Override
@@ -1594,7 +1610,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
 
     @Override
     public double getMeleeAttackRangeSqr(@Nullable LivingEntity living) {
-        return Config.MELEE_ATTACK_RANGE.asDouble();
+        return Config.MELEE_ATTACK_RANGE.asDouble() / 2.0d;
     }
 
     public void startAutoSpinAttack(int autoSpinAttackTicks) {

@@ -64,6 +64,18 @@ public class ReviveManager implements Listener {
         }
     }
 
+    public RealisticVillagers getPlugin() {
+        return plugin;
+    }
+
+    public Map<Block, MonumentAnimation> getRunningTasks() {
+        return runningTasks;
+    }
+
+    public Set<UUID> getIgnoreDead() {
+        return ignoreDead;
+    }
+
     public boolean isDay(@NotNull World world) {
         long time = world.getTime();
         return time < 13000 || time > 23000;

@@ -85,6 +85,7 @@ public enum Config {
     DROP_WHOLE_INVENTORY("drop-whole-inventory"),
 
     ATTACK_DAMAGE("attack-damage"),
+    CUSTOM_MELEE_WEAPONS("custom-melee-weapons"),
     CHANCE_OF_WEARING_HALLOWEEN_MASK("chance-of-wearing-halloween-mask"),
     RANGE_WEAPON_POWER("range-weapon-power"),
     VILLAGER_INVENTORY_SIZE("villager-inventory-size"),
@@ -206,6 +207,7 @@ public enum Config {
     REVIVE_BOSSBAR_STYLE("revive.boss-bar.style"),
     REVIVE_BOSSBAR_FLAGS("revive.boss-bar.flags"),
     TAME_HORSES("tame-horses"),
+    VILLAGER_CAN_ATTACK("villager-can-attack"),
     INCREASE_BABY_SCALE("increase-baby-scale");
 
     private final String path;
@@ -221,6 +223,10 @@ public enum Config {
 
     public int asInt() {
         return plugin.getConfig().getInt(path);
+    }
+
+    public int asInt(int defaultValue) {
+        return plugin.getConfig().getInt(path, defaultValue);
     }
 
     public String asString() {
@@ -240,7 +246,29 @@ public enum Config {
     }
 
     public double asDouble() {
-        return plugin.getConfig().getDouble(path);
+        double val = plugin.getConfig().getDouble(path);
+        if (val != 0.0d) return val;
+
+        // If the value is 0.0 or the key is missing, return a safe default.
+        switch (this) {
+            case SPEED_MODIFIER_WALK: return 1.0d;
+            case SPEED_MODIFIER_SPRINT: return 1.4d;
+            case SPEED_MODIFIER_SWIM: return 1.5d;
+            case SPEED_MODIFIER_EAT: return 0.6d;
+            case MELEE_ATTACK_RANGE: return 8.0d;
+            case RANGE_WEAPON_POWER: return 1.6d;
+            case MELEE_ATTACK_JUMP_CHANCE: return 0.08d;
+            case BACK_UP_JUMP_CHANCE: return 0.1d;
+            case CHANCE_OF_WEARING_HALLOWEEN_MASK: return 0.25d;
+            case HOSTILE_DETECTION_RANGE: return 16.0d;
+            case VILLAGER_MAX_HEALTH: return 20.0d;
+            case ATTACK_DAMAGE: return 2.0d;
+        }
+        return val;
+    }
+
+    public double asDouble(double defaultValue) {
+        return plugin.getConfig().getDouble(path, defaultValue);
     }
 
     public long asLong() {
@@ -249,6 +277,10 @@ public enum Config {
 
     public float asFloat() {
         return (float) asDouble();
+    }
+
+    public float asFloat(float defaultValue) {
+        return (float) asDouble(defaultValue);
     }
 
     public @NotNull List<String> asStringList() {

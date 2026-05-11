@@ -234,6 +234,194 @@ public final class RealisticVillagers extends JavaPlugin {
         compatibilityManager.addCompatibility(name, supplier.get());
     }
 
+    public Messages getMessages() {
+        return messages;
+    }
+
+    public INMSConverter getConverter() {
+        return converter;
+    }
+
+    public VillagerTracker getTracker() {
+        return tracker;
+    }
+
+    public AnnoyingMeterManager getAnnoyingManager() {
+        return annoyingManager;
+    }
+
+    public ReviveManager getReviveManager() {
+        return reviveManager;
+    }
+
+    public GiftManager getGiftManager() {
+        return giftManager;
+    }
+
+    public ChestManager getChestManager() {
+        return chestManager;
+    }
+
+    public ExpectingManager getExpectingManager() {
+        return expectingManager;
+    }
+
+    public InteractCooldownManager getCooldownManager() {
+        return cooldownManager;
+    }
+
+    public CompatibilityManager getCompatibilityManager() {
+        return compatibilityManager;
+    }
+
+    public List<String> getDefaultTargets() {
+        return defaultTargets;
+    }
+
+    public Set<Gift> getWantedItems() {
+        return wantedItems;
+    }
+
+    public Map<String, List<ItemLoot>> getLoots() {
+        return loots;
+    }
+
+    public List<String> getWorlds() {
+        return worlds;
+    }
+
+    public NamespacedKey getGiftKey() {
+        return giftKey;
+    }
+
+    public NamespacedKey getMarriedWith() {
+        return marriedWith;
+    }
+
+    public NamespacedKey getProcreationKey() {
+        return procreationKey;
+    }
+
+    public NamespacedKey getMotherUUIDKey() {
+        return motherUUIDKey;
+    }
+
+    public NamespacedKey getIsRingKey() {
+        return isRingKey;
+    }
+
+    public NamespacedKey getIsWhistleKey() {
+        return isWhistleKey;
+    }
+
+    public NamespacedKey getIsCrossKey() {
+        return isCrossKey;
+    }
+
+    public NamespacedKey getEntityTypeKey() {
+        return entityTypeKey;
+    }
+
+    public NamespacedKey getChatInteractionTypeKey() {
+        return chatInteractionTypeKey;
+    }
+
+    public NamespacedKey getChildNameKey() {
+        return childNameKey;
+    }
+
+    public NamespacedKey getChildSexKey() {
+        return childSexKey;
+    }
+
+    public NamespacedKey getZombieTransformKey() {
+        return zombieTransformKey;
+    }
+
+    public NamespacedKey getFishedKey() {
+        return fishedKey;
+    }
+
+    public NamespacedKey getBedVillagerKey() {
+        return bedVillagerKey;
+    }
+
+    public NamespacedKey getPlayerSexKey() {
+        return playerSexKey;
+    }
+
+    public NamespacedKey getInventoryKey() {
+        return inventoryKey;
+    }
+
+    public NamespacedKey getTamedByPlayerKey() {
+        return tamedByPlayerKey;
+    }
+
+    public NamespacedKey getTamedByVillagerKey() {
+        return tamedByVillagerKey;
+    }
+
+    public NamespacedKey getIsBeingLootedKey() {
+        return isBeingLootedKey;
+    }
+
+    public NamespacedKey getIgnoreVillagerKey() {
+        return ignoreVillagerKey;
+    }
+
+    public NamespacedKey getVillagerUUIDKey() {
+        return villagerUUIDKey;
+    }
+
+    public NamespacedKey getDivorcePapersKey() {
+        return divorcePapersKey;
+    }
+
+    public NamespacedKey getRaidStatsKey() {
+        return raidStatsKey;
+    }
+
+    public NamespacedKey getSkinDataKey() {
+        return skinDataKey;
+    }
+
+    public NamespacedKey getIgnoreItemKey() {
+        return ignoreItemKey;
+    }
+
+    public NamespacedKey getPlayerUUIDKey() {
+        return playerUUIDKey;
+    }
+
+    public NamespacedKey getItemIdKey() {
+        return itemIdKey;
+    }
+
+    public Shape getRing() {
+        return ring;
+    }
+
+    public Shape getWhistle() {
+        return whistle;
+    }
+
+    public Shape getCross() {
+        return cross;
+    }
+
+    public void setRing(Shape ring) {
+        this.ring = ring;
+    }
+
+    public void setWhistle(Shape whistle) {
+        this.whistle = whistle;
+    }
+
+    public void setCross(Shape cross) {
+        this.cross = cross;
+    }
+
     @Override
     public void onEnable() {
         long now = System.nanoTime();

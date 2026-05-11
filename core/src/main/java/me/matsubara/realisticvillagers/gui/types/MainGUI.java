@@ -105,6 +105,18 @@ public final class MainGUI extends InteractGUI {
         player.openInventory(inventory);
     }
 
+    public int getCurrentTrade() {
+        return currentTrade;
+    }
+
+    public void setCurrentTrade(int currentTrade) {
+        this.currentTrade = currentTrade;
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
     public void updateRequiredItems() {
         // In this case, info item needs to be updated.
         setItemInSlot("information", name -> createInfoItem(getGUIItem(name)));
@@ -416,6 +428,14 @@ public final class MainGUI extends InteractGUI {
         Settings(String name, TriFunction<IVillagerNPC, Player, String, Boolean> condition) {
             this.name = name;
             this.condition = condition;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public TriFunction<IVillagerNPC, Player, String, Boolean> getCondition() {
+            return condition;
         }
     }
 }

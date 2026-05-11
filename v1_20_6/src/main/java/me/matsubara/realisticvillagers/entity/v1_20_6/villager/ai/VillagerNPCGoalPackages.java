@@ -151,8 +151,13 @@ public class VillagerNPCGoalPackages {
                         3,
                         (npc, living) -> living instanceof PetWolf wolf && !wolf.isTame() && !wolf.isAngry(),
                         ImmutableSet.of(Items.BONE))),
-                Pair.of(10, new HealGolem(100, VillagerNPC.WALK_SPEED.get())),
-                Pair.of(10, new HelpFamily(100, VillagerNPC.WALK_SPEED.get())));
+                Pair.of(10, new HelpFamily(100, VillagerNPC.WALK_SPEED.get())),
+                Pair.of(99, BehaviorBuilder.create((instance) -> instance
+                        .group(instance.absent(MemoryModuleType.ATTACK_TARGET))
+                        .apply(instance, (target) -> (level, living, time) -> {
+                            living.getBrain().updateActivityFromSchedule(level.getDayTime(), level.getGameTime());
+                            return true;
+                        }))));
     }
 
     @Contract("_, _, _ -> new")

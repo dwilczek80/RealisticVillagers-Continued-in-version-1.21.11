@@ -104,6 +104,58 @@ public final class VillagerTracker implements Listener {
         PacketEvents.getAPI().getEventManager().registerListener(handler = new VillagerHandler(plugin));
     }
 
+    public RealisticVillagers getPlugin() {
+        return plugin;
+    }
+
+    public NPCPool getPool() {
+        return pool;
+    }
+
+    public PaperListeners getPaperListeners() {
+        return paperListeners;
+    }
+
+    public BukkitSpawnListeners getSpawnListeners() {
+        return spawnListeners;
+    }
+
+    public Map<UUID, String> getTransformations() {
+        return transformations;
+    }
+
+    public Map<UUID, Integer> getPortalTransform() {
+        return portalTransform;
+    }
+
+    public Set<IVillagerNPC> getOfflineVillagers() {
+        return offlineVillagers;
+    }
+
+    public Map<String, Pair<File, FileConfiguration>> getFiles() {
+        return files;
+    }
+
+    public Map<UUID, String> getSelectedProfession() {
+        return selectedProfession;
+    }
+
+    public Map<UUID, PreviewTask> getPreviews() {
+        return previews;
+    }
+
+    public VillagerHandler getHandler() {
+        return handler;
+    }
+
+    public MineskinClient getMineskinClient() {
+        return mineskinClient;
+    }
+
+    public Random getRandom() {
+        return random;
+    }
+
     public void updateMineskinApiKey() {
         String apiKey = Config.MINESKIN_API_KEY.asString();
         mineskinClient.setApiKey(apiKey.isEmpty() ? null : apiKey);

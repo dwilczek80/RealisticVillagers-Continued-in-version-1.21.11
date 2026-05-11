@@ -92,6 +92,30 @@ public class SkinGUI extends PaginatedGUI {
         InventoryUpdate.updateInventory(player, getTitle());
     }
 
+    public boolean isMale() {
+        return isMale;
+    }
+
+    public boolean isAdult() {
+        return isAdult;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public Map<String, ItemStack> getProfessionItems() {
+        return professionItems;
+    }
+
+    public String getCurrentProfession() {
+        return currentProfession;
+    }
+
+    public void setCurrentProfession(String currentProfession) {
+        this.currentProfession = currentProfession;
+    }
+
     public static void openMenu(@NotNull RealisticVillagers plugin, Player player, @NotNull String sex, boolean isAdult, @Nullable Integer page, @Nullable String keyword) {
         boolean isMale = sex.equals("male");
         if ((isMale ? SkinGUI.CACHE_MALE_HEADS : SkinGUI.CACHE_FEMALE_HEADS).isEmpty()) {

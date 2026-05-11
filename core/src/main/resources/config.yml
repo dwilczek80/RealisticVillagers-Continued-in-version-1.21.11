@@ -1190,6 +1190,12 @@ fishing-cooldown: 600
 # The amount of damage caused by a villager (melee attack).
 attack-damage: 3.0
 
+# A list of custom/modded melee weapon material names that villagers should be able to use.
+# NOTE: Spears (*_SPEAR) and Mace are now automatically detected and don't need to be added here.
+# Use this list for other modded weapons like: KATANA, BATTLEAXE, etc.
+# The names must match exactly the Bukkit Material name (case-insensitive).
+custom-melee-weapons: []
+
 # The power of a ranged weapon (bow/crossbow).
 # NOTE: Don't change if you don't know what you're doing.
 range-weapon-power: 1.6
@@ -1473,12 +1479,8 @@ greet-messages:
 riptide-only-in-water-or-rain: true
 
 # Here you can modify the different movement speeds.
-# NOTE: Swim should be the highest speed of these 4 as it's usually slower than the others.
-speed-modifier:
-  eat: 0.25
-  walk: 0.5
-  sprint: 0.75
-  swim: 1.0
+# NOTE: The speed-modifier values are multipliers applied to the base MOVEMENT_SPEED attribute (0.1).
+# See the full speed-modifier block below for configurable values.
 
 # Since baby villagers are smaller, they look a bit higher than adults; here you can set the offset so that they look at the same height as adults.
 # NOTE 1: For some reason, it's not necessary to add an offset in 1.19.4, at least in some paper builds.
@@ -1557,3 +1559,31 @@ tame-horses: false
 # If false, the baby villagers will have their hitbox reduced (vanilla) but can be seen passing through 1x1 blocks, looking glitchy.
 # NOTE: This option will only take effect if @disable-skins is false.
 increase-baby-scale: true
+
+# Speed multipliers applied to the base MOVEMENT_SPEED attribute (0.1, same as a player).
+# Actual movement speed = base (0.1) * modifier.
+# Examples: walk=1.0 means same speed as a player walking (0.1 * 1.0 = 0.1)
+#           sprint=1.4 means 40% faster than a player walking (0.1 * 1.4 = 0.14)
+speed-modifier:
+  # Speed when eating or doing idle activities (slower than normal walk).
+  eat: 0.6
+  # Speed when walking normally (1.0 = same as player walking speed).
+  walk: 1.0
+  # Speed when sprinting during combat or fleeing (1.4 = faster than player sprint).
+  sprint: 1.4
+  # Speed when swimming (higher to compensate for water resistance).
+  swim: 1.5
+
+# Chance (0.0 - 1.0) that a villager will jump toward the target during a melee charge.
+# Lower values = more grounded fights. Recommended: 0.05 - 0.15.
+melee-attack-jump-chance: 0.08
+
+# Chance (0.0 - 1.0) that a villager will jump backward when backing away from a target.
+back-up-jump-chance: 0.1
+
+# Detection range (in blocks) for melee combat engagement.
+# This is NOT the visual detection range, only how close the target must be to trigger an attack walk.
+melee-attack-range: 8.0
+
+# If true, villagers can only use riptide enchantment when in water or during rain.
+riptide-only-in-water-or-rain: true

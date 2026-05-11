@@ -81,6 +81,14 @@ public abstract class InteractGUI implements InventoryHolder {
         return shouldStopInteracting;
     }
 
+    public void setShouldStopInteracting(boolean shouldStopInteracting) {
+        this.shouldStopInteracting = shouldStopInteracting;
+    }
+
+    public void setTaskId(int taskId) {
+        this.taskId = taskId;
+    }
+
     public static int getValidSize(@NotNull RealisticVillagers plugin, String sizePath, int min) {
         int size = plugin.getConfig().getInt("gui." + sizePath + ".size");
         return getValidSize(size, min);

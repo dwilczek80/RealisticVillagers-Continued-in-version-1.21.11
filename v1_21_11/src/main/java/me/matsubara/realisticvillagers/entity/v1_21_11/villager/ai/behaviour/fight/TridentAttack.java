@@ -32,6 +32,7 @@ import org.bukkit.craftbukkit.v1_21_R7.enchantments.CraftEnchantment;
 import org.bukkit.craftbukkit.v1_21_R7.inventory.CraftItemStack;
 import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -52,7 +53,8 @@ public class TridentAttack extends Behavior<Villager> {
     @Override
     public boolean checkExtraStartConditions(ServerLevel level, Villager villager) {
         LivingEntity target = getAttackTarget(villager);
-        return villager instanceof VillagerNPC npc
+        return target != null
+                && villager instanceof VillagerNPC npc
                 && npc.isHolding(Items.TRIDENT)
                 && canThrow(npc)
                 && BlockAttackWithShield.notUsingShield(npc)
@@ -85,14 +87,16 @@ public class TridentAttack extends Behavior<Villager> {
 
     @Override
     public void tick(ServerLevel level, Villager villager, long time) {
-        removeWalkTargetIfNeeded(villager);
-
         LivingEntity target = getAttackTarget(villager);
+        if (target == null) return;
+
+        removeWalkTargetIfNeeded(villager, target);
+
         lookAtTarget(villager, target);
         tridentAttack((VillagerNPC) villager);
     }
 
-    private void removeWalkTargetIfNeeded(@NotNull Villager villager) {
+    private void removeWalkTargetIfNeeded(@NotNull Villager villager, @NotNull LivingEntity targetEntity) {
         Brain<Villager> brain = villager.getBrain();
 
         Optional<WalkTarget> walkTarget = brain.getMemory(MemoryModuleType.WALK_TARGET);
@@ -101,7 +105,7 @@ public class TridentAttack extends Behavior<Villager> {
         if (!(walkTarget.get().getTarget() instanceof EntityTracker tracker)) return;
 
         Entity target = tracker.getEntity();
-        if (!target.is(getAttackTarget(villager))) return;
+        if (!target.is(targetEntity)) return;
 
         if (villager.distanceTo(target) <= TRIDENT_DISTANCE_ATTACK) {
             brain.eraseMemory(MemoryModuleType.WALK_TARGET);
@@ -208,10 +212,8 @@ public class TridentAttack extends Behavior<Villager> {
         mob.getBrain().setMemory(MemoryModuleType.LOOK_TARGET, new EntityTracker(target, true));
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    private @NotNull LivingEntity getAttackTarget(@NotNull Villager villager) {
-        // Can't be null since the value should be present in the constructor.
-        return villager.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).get();
+    private static @Nullable LivingEntity getAttackTarget(@NotNull Villager villager) {
+        return villager.getBrain().getMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);
     }
 
     enum TridentState {
