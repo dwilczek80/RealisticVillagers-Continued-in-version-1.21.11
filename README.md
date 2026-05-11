@@ -84,5 +84,5 @@ We play nice with others:
 <div align="center">
 <i>Realistic Villagers — Because every village deserves a soul.</i>
 
-[MIT License]
+[GPL-3.0 License]
 </div>
