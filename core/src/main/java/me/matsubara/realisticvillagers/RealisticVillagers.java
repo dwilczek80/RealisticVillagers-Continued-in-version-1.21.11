@@ -205,17 +205,23 @@ public final class RealisticVillagers extends JavaPlugin {
         logger.info("");
         logger.info("Registering custom entities...");
 
+        String currentMC = Bukkit.getBukkitVersion().split("-")[0];
         VersionMatcher matcher = VersionMatcher.getByMinecraftVersion();
         if (matcher == null) {
-            logger.severe("NMSConverter couldn't find a valid implementation for this server version.");
-        } else try {
+            logger.severe("NMSConverter couldn't find a valid implementation for this server version (" + currentMC + ").");
+        } else {
+            if (!VersionMatcher.isExactMatch()) {
+                logger.warning("Server version " + currentMC + " is not officially supported. Using latest known NMS as fallback — some features may not work correctly.");
+            }
+        }
+        if (matcher != null) try {
             Class<?> converterClass = Class.forName(INMSConverter.class.getPackageName() + "." + matcher.getPackageName() + ".NMSConverter");
             Constructor<?> converterConstructor = converterClass.getConstructor(getClass());
             converter = (INMSConverter) converterConstructor.newInstance(this);
             converter.registerEntities();
             converter.refreshSchedules(); // Build timelines BEFORE WorldInitEvent fires.
         } catch (ReflectiveOperationException exception) {
-            logger.severe("NMSConverter couldn't find a valid implementation for this server version.");
+            logger.severe("NMSConverter failed to load for server version " + currentMC + " (fallback NMS: " + matcher.getPackageName() + ").");
             exception.printStackTrace();
         }
 
@@ -432,6 +438,12 @@ public final class RealisticVillagers extends JavaPlugin {
         PluginManager manager = getServer().getPluginManager();
         if (manager.getPlugin("packetevents") == null) {
             getLogger().severe("This plugin requires PacketEvents, disabling...");
+            manager.disablePlugin(this);
+            return;
+        }
+
+        if (converter == null) {
+            logger.severe("NMSConverter failed to initialize — this server version is not supported. Disabling RealisticVillagers.");
             manager.disablePlugin(this);
             return;
         }

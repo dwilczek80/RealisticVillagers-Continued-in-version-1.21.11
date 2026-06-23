@@ -140,6 +140,12 @@ custom-nametags:
   # Alpha value of rendered text, from -128 to 127.
   # Default to -1, which is completely opaque.
   text-opacity: -1
+  # Background color of the nametag frame in hex format (#RRGGBB).
+  # Examples: "#000000" = black, "#1a1a2e" = dark navy, "#2d0000" = dark red.
+  background-color: "#000000"
+  # Opacity (transparency) of the nametag background, from 0 (invisible) to 255 (fully opaque).
+  # Tip: 64 = Minecraft's default semi-transparent background, 0 = completely hidden.
+  background-opacity: 64
   lines:
     # %villager-name% - name of the villager.
     # %level% - level of the villager (only for @villager).
@@ -400,8 +406,8 @@ variable-text:
     minute: "m"
     hour: "h"
     day: "d"
-  dead: "ÔÇá"
-  infinite: "Ôł×"
+  dead: "†"
+  infinite: "∞"
   none: "None"
   unknown: "Unknown"
   villager: "Villager"
@@ -1251,13 +1257,6 @@ default-wanted-items:
   - SALMON($RANDOM)*
   - IRON_INGOT(2-6)*
 
-# Chance of jumping when attacking with a sword/axe (just to give more "realism").
-# NOTE: It's recommended to leave it at 0.0 so that villagers are not attacked when jumping (or use a lower value).
-melee-attack-jump-chance: 0.0
-
-# Chance of jumping when attacking with a bow/crossbow and backing up (just to give more "realism").
-# NOTE: It's recommended to leave it at 0.0 so that villagers are not attacked when jumping (or use a lower value).
-back-up-jump-chance: 0.0
 
 # Who can modify the inventory of a villager (EVERYONE/FAMILY/PARTNER/NONE).
 # NOTE: Be careful with this.
@@ -1279,9 +1278,6 @@ who-can-modify-villager-name: NONE
 # Whether special prices are disabled when modifying the villager's inventory.
 disable-special-prices-if-allowed-to-modify-inventory: true
 
-# Here you can change the melee attack range.
-# NOTE: Avoid setting values greater than 4.
-melee-attack-range: 3.375
 
 # Here you can choose whether villagers can ride a ship when they are near it.
 disable-villager-riding-nearby-boat: false
@@ -1474,9 +1470,6 @@ greet-messages:
   per-type-cooldown: 300000
   # The required reputation to receive a greeting from a villager.
   required-reputation: 5
-
-# Only throw trident when the villager is in water or when exposed to rain.
-riptide-only-in-water-or-rain: true
 
 # Here you can modify the different movement speeds.
 # NOTE: The speed-modifier values are multipliers applied to the base MOVEMENT_SPEED attribute (0.1).

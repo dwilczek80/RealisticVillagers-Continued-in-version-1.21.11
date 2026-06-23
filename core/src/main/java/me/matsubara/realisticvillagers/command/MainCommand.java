@@ -123,28 +123,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 messages.send(sender, Messages.Message.UNKNOWN_PLAYER);
                 return true;
             }
-            Villager targetVillager = target.getNearbyEntities(5, 5, 5).stream()
-                    .filter(e -> e instanceof Villager)
-                    .map(e -> (Villager) e)
-                    .min((a, b) -> Double.compare(
-                            a.getLocation().distanceSquared(target.getLocation()),
-                            b.getLocation().distanceSquared(target.getLocation())))
-                    .orElse(null);
-            if (targetVillager == null) {
-                messages.send(sender, Messages.Message.GENDER_NO_VILLAGER);
-                return true;
-            }
-            IVillagerNPC npc = plugin.getConverter().getNPC(targetVillager).orElse(null);
-            if (npc == null) {
-                messages.send(sender, Messages.Message.GENDER_NO_VILLAGER);
-                return true;
-            }
-            npc.setSex(newSex);
-            npc.setGenderLocked(true);
-            npc.setSkinTextureId(-1);
-            tracker.refreshNPCSkin(targetVillager, false);
+            target.getPersistentDataContainer().set(plugin.getPlayerSexKey(), PersistentDataType.STRING, newSex);
+            messages.send(target, Messages.Message.PLAYER_GENDER_SET,
+                    s -> s.replace("%gender%", newSex));
             messages.send(sender, Messages.Message.GENDER_CHANGED,
-                    s -> s.replace("%villager-name%", npc.getVillagerName()).replace("%gender%", newSex));
+                    s -> s.replace("%villager-name%", target.getName()).replace("%gender%", newSex));
             return true;
         }
 

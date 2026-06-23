@@ -57,7 +57,6 @@ public class NPC {
     private static final int IGNORE = -1;
     private static final int NO_BLOCK = -2;
     private static final boolean ENABLED = XReflection.supports(20, 2);
-    private static final Color NAMETAG_BACKGROUND_COLOR = ENABLED ? Color.fromRGB(0, 0, 0) : null;
 
     public NPC(RealisticVillagers plugin, UserProfile profile, SpawnCustomizer spawnCustomizer, int entityId, IVillagerNPC npc) {
         this.plugin = plugin;
@@ -192,8 +191,8 @@ public class NPC {
         } else {
             data.add(new EntityData<>(23, EntityDataTypes.ADV_COMPONENT, Component.text(getNameTextFor(player)))); // Text
             data.add(new EntityData<>(24, EntityDataTypes.INT, 200)); // Line width
-            // Background color = Color#asARGB() / 1073741824 / same as using the flag: default background.
-            data.add(new EntityData<>(25, EntityDataTypes.INT, NAMETAG_BACKGROUND_COLOR != null ? NAMETAG_BACKGROUND_COLOR.asARGB() : 0));
+            // Background color as ARGB int (alpha=opacity, then RGB from config).
+            data.add(new EntityData<>(25, EntityDataTypes.INT, getBackgroundARGB()));
             data.add(new EntityData<>(26, EntityDataTypes.BYTE, (byte) getOpacity())); // Text opacity
             // Flags (Has shadow = 0x01 / See through = 0x02 / Use default background color = 0x04 / Alignment = ?) / 0
             data.add(new EntityData<>(27, EntityDataTypes.BYTE, (byte) getFlags()));
@@ -218,6 +217,21 @@ public class NPC {
 
         manager.sendPacket(channel, new WrapperPlayServerEntityMetadata(id, data));
         return id;
+    }
+
+    private int getBackgroundARGB() {
+        int opacity = Math.max(0, Math.min(255, Config.CUSTOM_NAME_BACKGROUND_OPACITY.asInt(255)));
+        String hex = Config.CUSTOM_NAME_BACKGROUND_COLOR.asString("#000000");
+        try {
+            if (hex.startsWith("#")) hex = hex.substring(1);
+            int rgb = Integer.parseInt(hex, 16);
+            int r = (rgb >> 16) & 0xFF;
+            int g = (rgb >> 8) & 0xFF;
+            int b = rgb & 0xFF;
+            return (opacity << 24) | (r << 16) | (g << 8) | b;
+        } catch (NumberFormatException e) {
+            return (opacity << 24); // fallback: opaque black
+        }
     }
 
     private int getOpacity() {

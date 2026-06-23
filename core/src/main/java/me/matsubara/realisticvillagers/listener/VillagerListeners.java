@@ -279,7 +279,9 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         if (npc == null) return cancel;
 
         if (hand != EquipmentSlot.HAND) return true;
-        if (action != null && action != WrapperPlayClientInteractEntity.InteractAction.INTERACT) return true;
+        // MC 26.x sends INTERACT_AT (not INTERACT) when right-clicking player-type entities.
+        // Allow both; ATTACK is already blocked before reaching this method.
+        if (action == WrapperPlayClientInteractEntity.InteractAction.ATTACK) return true;
 
         plugin.getServer().getScheduler().runTask(plugin, (() -> {
             Messages messages = plugin.getMessages();

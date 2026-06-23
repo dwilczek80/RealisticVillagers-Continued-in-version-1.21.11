@@ -39,6 +39,8 @@ public enum Config {
     CUSTOM_NAME_SHADOW("custom-nametags.shadow"),
     CUSTOM_NAME_SEE_THROUGH("custom-nametags.see-through"),
     CUSTOM_NAME_TEXT_OPACITY("custom-nametags.text-opacity"),
+    CUSTOM_NAME_BACKGROUND_COLOR("custom-nametags.background-color"),
+    CUSTOM_NAME_BACKGROUND_OPACITY("custom-nametags.background-opacity"),
     CUSTOM_NAME_VILLAGER_LINES("custom-nametags.lines.villager"),
     CUSTOM_NAME_TRADER_LINES("custom-nametags.lines.wandering-trader"),
     CUSTOM_NAME_PARTNER_COLOR("custom-nametags.relationship-color.partner"),
