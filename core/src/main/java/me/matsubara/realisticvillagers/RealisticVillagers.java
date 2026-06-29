@@ -20,6 +20,9 @@ import me.matsubara.realisticvillagers.data.serialization.OfflineDataWrapper;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.files.Messages;
+import me.matsubara.realisticvillagers.hologram.HologramListener;
+import me.matsubara.realisticvillagers.hologram.HologramManager;
+import net.wesjd.anvilgui.AnvilGUI;
 import me.matsubara.realisticvillagers.gui.types.WhistleGUI;
 import me.matsubara.realisticvillagers.listener.*;
 import me.matsubara.realisticvillagers.manager.AnnoyingMeterManager;
@@ -27,13 +30,13 @@ import me.matsubara.realisticvillagers.manager.ChestManager;
 import me.matsubara.realisticvillagers.manager.ExpectingManager;
 import me.matsubara.realisticvillagers.manager.InteractCooldownManager;
 import me.matsubara.realisticvillagers.manager.gift.Gift;
+import me.matsubara.realisticvillagers.manager.gift.GiftCategory;
 import me.matsubara.realisticvillagers.manager.gift.GiftManager;
 import me.matsubara.realisticvillagers.manager.revive.ReviveManager;
 import me.matsubara.realisticvillagers.nms.INMSConverter;
 import me.matsubara.realisticvillagers.tracker.VillagerTracker;
 import me.matsubara.realisticvillagers.util.*;
 import me.matsubara.realisticvillagers.util.customblockdata.CustomBlockData;
-import net.wesjd.anvilgui.AnvilGUI;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -123,6 +126,7 @@ public final class RealisticVillagers extends JavaPlugin {
     private OtherListeners otherListeners;
     private PlayerListeners playerListeners;
     private VillagerListeners villagerListeners;
+    private HologramManager hologramManager;
 
     private VillagerTracker tracker;
     private @Setter Shape ring;
@@ -136,6 +140,8 @@ public final class RealisticVillagers extends JavaPlugin {
     private ExpectingManager expectingManager;
     private InteractCooldownManager cooldownManager;
     private CompatibilityManager compatibilityManager;
+
+    private FileConfiguration guiConfig, lootConfig, variableTextConfig, hologramConfig, giftsConfig;
 
     private Messages messages;
     private INMSConverter converter;
@@ -154,18 +160,20 @@ public final class RealisticVillagers extends JavaPlugin {
     public static final BiConsumer<JavaPlugin, Metadatable> LISTEN_MODE_IGNORE = (plugin, living) -> living.setMetadata("RemoveGlow", new FixedMetadataValue(plugin, true));
 
     public static final List<AnvilGUI.ResponseAction> CLOSE_RESPONSE = Collections.singletonList(AnvilGUI.ResponseAction.close());
+
     private static final List<String> FILTER_TYPES = List.of("WHITELIST", "BLACKLIST");
+    // Sections in config.yml that ConfigUpdater must not overwrite (user-defined items/data).
     private static final Set<String> SPECIAL_SECTIONS = Sets.newHashSet(
             "baby",
-            "spawn-loot",
             "wedding-ring",
             "whistle",
             "divorce-papers",
             "cross",
             "change-skin",
-            "gui.main.frame",
-            "schedules",
+            "default-wanted-items",
             "revive.head-item");
+    // Sections in gui.yml that ConfigUpdater must not overwrite.
+    private static final Set<String> GUI_SPECIAL_SECTIONS = Sets.newHashSet("gui.main.frame");
     private static final List<String> GUI_TYPES = List.of("main", "equipment", "combat", "whistle", "skin", "new-skin");
     private static final int BSTATS_ID = 27463;
     private static final @SuppressWarnings("UnstableApiUsage") NamespacedKey MM_KEY = new NamespacedKey("mythicmobs", "type");
@@ -219,6 +227,13 @@ public final class RealisticVillagers extends JavaPlugin {
             Constructor<?> converterConstructor = converterClass.getConstructor(getClass());
             converter = (INMSConverter) converterConstructor.newInstance(this);
             converter.registerEntities();
+            // Load default variable-text.yml from classpath so refreshSchedules() can read schedules.
+            try (java.io.InputStream stream = getResource("configs/variable-text.yml")) {
+                if (stream != null) {
+                    variableTextConfig = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
+                    variableTextConfig.setDefaults(new MemoryConfiguration());
+                }
+            } catch (java.io.IOException ignored) {}
             converter.refreshSchedules(); // Build timelines BEFORE WorldInitEvent fires.
         } catch (ReflectiveOperationException exception) {
             logger.severe("NMSConverter failed to load for server version " + currentMC + " (fallback NMS: " + matcher.getPackageName() + ").");
@@ -274,6 +289,26 @@ public final class RealisticVillagers extends JavaPlugin {
 
     public InteractCooldownManager getCooldownManager() {
         return cooldownManager;
+    }
+
+    public FileConfiguration getGuiConfig() {
+        return guiConfig;
+    }
+
+    public FileConfiguration getLootConfig() {
+        return lootConfig;
+    }
+
+    public FileConfiguration getVariableTextConfig() {
+        return variableTextConfig;
+    }
+
+    public FileConfiguration getHologramConfig() {
+        return hologramConfig;
+    }
+
+    public FileConfiguration getGiftsConfig() {
+        return giftsConfig;
     }
 
     public CompatibilityManager getCompatibilityManager() {
@@ -459,9 +494,14 @@ public final class RealisticVillagers extends JavaPlugin {
         logger.info("Skins loaded!");
         logger.info("");
 
-        saveResource("names.yml");
+        saveResource("configs/names/default.yml");
 
         saveDefaultConfig();
+        saveResource("configs/gui.yml");
+        saveResource("configs/loot.yml");
+        saveResource("configs/variable-text.yml");
+        saveResource("configs/holograms.yml");
+        saveResource("configs/gifts.yml");
         messages = new Messages(this);
 
         logger.info("Updating configuration files...");
@@ -506,12 +546,15 @@ public final class RealisticVillagers extends JavaPlugin {
         logger.info("Loots loaded!");
         logger.info("");
 
+        hologramManager = new HologramManager(this);
+
         registerEvents(
                 new BlockListeners(this),
                 (inventoryListeners = new InventoryListeners(this)),
                 (otherListeners = new OtherListeners(this)),
                 (playerListeners = new PlayerListeners(this)),
-                (villagerListeners = new VillagerListeners(this)));
+                (villagerListeners = new VillagerListeners(this)),
+                new HologramListener(this));
 
         // Used in previous versions, not needed any more.
         FileUtils.deleteQuietly(new File(getDataFolder(), "villagers.yml"));
@@ -539,6 +582,8 @@ public final class RealisticVillagers extends JavaPlugin {
     public void onDisable() {
         PacketEvents.getAPI().terminate();
 
+        if (hologramManager != null) hologramManager.closeAll();
+
         if (converter == null || tracker == null) return;
 
         for (World world : Bukkit.getWorlds()) {
@@ -554,13 +599,13 @@ public final class RealisticVillagers extends JavaPlugin {
         getLogger().info((loading ? "Loading" : "Enabling") + " took " + time + "!");
     }
 
-    private void fillIgnoredSections(FileConfiguration config) {
+    private void fillGuiIgnoredSections(FileConfiguration guiCfg) {
         for (String guiType : GUI_TYPES) {
-            ConfigurationSection section = config.getConfigurationSection("gui." + guiType + ".items");
+            ConfigurationSection section = guiCfg.getConfigurationSection("gui." + guiType + ".items");
             if (section == null) continue;
 
             for (String key : section.getKeys(false)) {
-                SPECIAL_SECTIONS.add("gui." + guiType + ".items." + key);
+                GUI_SPECIAL_SECTIONS.add("gui." + guiType + ".items." + key);
             }
         }
     }
@@ -584,9 +629,6 @@ public final class RealisticVillagers extends JavaPlugin {
                 file -> {
                     reloadConfig();
 
-                    // Refresh schedules.
-                    converter.refreshSchedules();
-
                     // Re-cache EnvironmentAttributeSystem for all loaded worlds after schedule
                     // refresh, otherwise villagers will use stale or vanilla schedules until
                     // the next server restart (causing sleep/job loop).
@@ -608,10 +650,7 @@ public final class RealisticVillagers extends JavaPlugin {
                     if (worlds == null) worlds = Config.WORLDS_FILTER_WORLDS.asStringList();
                 },
                 file -> saveDefaultConfig(),
-                config -> {
-                    fillIgnoredSections(config);
-                    return SPECIAL_SECTIONS.stream().filter(config::contains).toList();
-                },
+                config -> SPECIAL_SECTIONS.stream().filter(config::isConfigurationSection).toList(),
                 ConfigChanges.builder()
                         .addChange(
                                 noVersion,
@@ -682,12 +721,111 @@ public final class RealisticVillagers extends JavaPlugin {
 
         Function<FileConfiguration, List<String>> emptyIgnore = config -> Collections.emptyList();
 
-        // messages.yml
+        // gui.yml
         updateConfig(
                 pluginFolder,
-                "messages.yml",
-                file -> messages.setConfiguration(YamlConfiguration.loadConfiguration(file)),
-                file -> saveResource("messages.yml"),
+                "configs/gui.yml",
+                file -> {
+                    guiConfig = YamlConfiguration.loadConfiguration(file);
+                    guiConfig.setDefaults(new MemoryConfiguration());
+                },
+                file -> saveResource("configs/gui.yml"),
+                config -> {
+                    fillGuiIgnoredSections(config);
+                    return GUI_SPECIAL_SECTIONS.stream().filter(config::isConfigurationSection).toList();
+                },
+                Collections.emptyList());
+
+        // loot.yml
+        updateConfig(
+                pluginFolder,
+                "configs/loot.yml",
+                file -> {
+                    lootConfig = YamlConfiguration.loadConfiguration(file);
+                    lootConfig.setDefaults(new MemoryConfiguration());
+                },
+                file -> saveResource("configs/loot.yml"),
+                config -> config.contains("spawn-loot") ? List.of("spawn-loot") : Collections.emptyList(),
+                Collections.emptyList());
+
+        // gifts.yml
+        updateConfig(
+                pluginFolder,
+                "configs/gifts.yml",
+                file -> {
+                    giftsConfig = YamlConfiguration.loadConfiguration(file);
+                    giftsConfig.setDefaults(new MemoryConfiguration());
+                    if (giftManager != null) giftManager.loadGiftCategories();
+                },
+                file -> saveResource("configs/gifts.yml"),
+                config -> config.contains("items") ? List.of("items") : Collections.emptyList(),
+                Collections.emptyList());
+
+        // variable-text.yml
+        updateConfig(
+                pluginFolder,
+                "configs/variable-text.yml",
+                file -> {
+                    variableTextConfig = YamlConfiguration.loadConfiguration(file);
+                    variableTextConfig.setDefaults(new MemoryConfiguration());
+                    // Refresh schedules now that variableTextConfig holds the current values.
+                    converter.refreshSchedules();
+                },
+                file -> saveResource("configs/variable-text.yml"),
+                config -> config.contains("schedules") ? List.of("schedules") : Collections.emptyList(),
+                Collections.emptyList());
+
+        // holograms.yml — ConfigUpdater is NOT used here because it duplicates YAML
+        // block-sequence items (list entries get written twice into the merged file).
+        // We handle it manually: create from JAR when missing, then add only the keys
+        // that are absent from the disk file using YamlConfiguration directly.
+        {
+            File hologramsFile = new File(pluginFolder, "configs/holograms.yml");
+
+            // 1. Create from JAR if the file is missing.
+            if (!hologramsFile.exists()) saveResource("configs/holograms.yml");
+
+            // 2. Silently replace old format (pre hologram.menus) with the JAR version.
+            YamlConfiguration diskCfg = YamlConfiguration.loadConfiguration(hologramsFile);
+            if (diskCfg.contains("hologram") && !diskCfg.contains("hologram.menus")) {
+                FileUtils.deleteQuietly(hologramsFile);
+                saveResource("configs/holograms.yml");
+                diskCfg = YamlConfiguration.loadConfiguration(hologramsFile);
+            }
+
+            // 3. Add any keys present in the JAR but missing from the disk file.
+            //    isConfigurationSection() guards skip parent nodes — only leaf values
+            //    (scalars and lists) are added, so no section is inadvertently overwritten.
+            try (InputStream jarStream = getResource("configs/holograms.yml")) {
+                if (jarStream != null) {
+                    YamlConfiguration jarCfg = YamlConfiguration.loadConfiguration(
+                            new java.io.InputStreamReader(jarStream, java.nio.charset.StandardCharsets.UTF_8));
+                    boolean changed = false;
+                    for (String key : jarCfg.getKeys(true)) {
+                        if (!jarCfg.isConfigurationSection(key) && !diskCfg.contains(key)) {
+                            diskCfg.set(key, jarCfg.get(key));
+                            changed = true;
+                        }
+                    }
+                    if (changed) diskCfg.save(hologramsFile);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            hologramConfig = diskCfg;
+            hologramConfig.setDefaults(new MemoryConfiguration());
+        }
+
+        // configs/messages/system.yml — system/admin messages only (no villager dialogue)
+        updateConfig(
+                pluginFolder,
+                "configs/messages/system.yml",
+                file -> {
+                    messages.setConfiguration(YamlConfiguration.loadConfiguration(file));
+                    messages.loadRegionalConfigs();
+                },
+                file -> saveResource("configs/messages/system.yml"),
                 emptyIgnore,
                 ConfigChanges.builder()
                         // Previously @interact-fail.not-allowed was a single line message, now is a map; only for V = X.
@@ -701,14 +839,42 @@ public final class RealisticVillagers extends JavaPlugin {
         loadConsumer.accept(new File(skinFolder, "male.yml"));
         loadConsumer.accept(new File(skinFolder, "female.yml"));
 
-        // names.yml
-        updateConfig(
-                pluginFolder,
-                "names.yml",
-                loadConsumer,
-                file -> saveResource("names.yml"),
-                emptyIgnore,
-                Collections.emptyList());
+        // Regional skin filter files: skins/regions/<type>/male.yml and female.yml
+        // Format: each profession key holds a list of skin IDs from the global file.
+        // Saved from JAR on first run (saveResource skips if file already exists on disk).
+        // Loaded with key "<sex>_<type>.yml" (e.g. "male_desert.yml").
+        for (String regionType : new String[]{"desert", "plains", "snow", "savanna", "jungle", "swamp", "taiga"}) {
+            for (String sexName : new String[]{"male", "female"}) {
+                saveResource("skins/regions/" + regionType + "/" + sexName + ".yml");
+                File regionalFile = new File(skinFolder + File.separator + "regions" + File.separator + regionType, sexName + ".yml");
+                if (regionalFile.exists()) {
+                    tracker.getFiles().put(
+                            sexName + "_" + regionType + ".yml",
+                            Pair.of(regionalFile, YamlConfiguration.loadConfiguration(regionalFile)));
+                }
+            }
+        }
+
+        // configs/names/default.yml — global fallback name pool (was names.yml)
+        {
+            String resourcePath = "configs/names/default.yml";
+            saveResource(resourcePath);
+            File defaultNamesFile = new File(pluginFolder, resourcePath);
+            if (defaultNamesFile.exists()) {
+                tracker.getFiles().put("names_default.yml", Pair.of(defaultNamesFile, YamlConfiguration.loadConfiguration(defaultNamesFile)));
+            }
+        }
+
+        // Regional name files — configs/names/<type>.yml, keyed as "names_<type>.yml".
+        for (String type : new String[]{"desert", "plains", "snow", "savanna", "jungle", "swamp", "taiga"}) {
+            String resourcePath = "configs/names/" + type + ".yml";
+            String mapKey = "names_" + type + ".yml";
+            saveResource(resourcePath);
+            File regionalFile = new File(pluginFolder, resourcePath);
+            if (regionalFile.exists()) {
+                tracker.getFiles().put(mapKey, Pair.of(regionalFile, YamlConfiguration.loadConfiguration(regionalFile)));
+            }
+        }
     }
 
     @Contract(pure = true)
@@ -841,7 +1007,8 @@ public final class RealisticVillagers extends JavaPlugin {
         ItemBuilder builder = getItem(item).setData(identifier, PersistentDataType.INTEGER, 1);
 
         boolean shaped = getConfig().getBoolean(item + ".crafting.shaped");
-        List<String> ingredients = getConfig().getStringList(item + ".crafting.ingredients");
+        boolean enabled = getConfig().getBoolean(item + ".crafting.enabled", true);
+        List<String> ingredients = enabled ? getConfig().getStringList(item + ".crafting.ingredients") : List.of();
         List<String> shapeList = getConfig().getStringList(item + ".crafting.shape");
 
         return new Shape(this, recipeName, shaped, ingredients, shapeList, builder.build());
@@ -864,7 +1031,9 @@ public final class RealisticVillagers extends JavaPlugin {
     }
 
     public ItemBuilder getItem(String path, @Nullable IVillagerNPC npc) {
-        FileConfiguration config = getConfig();
+        FileConfiguration config = path.startsWith("gui.") ? guiConfig
+                : path.startsWith("spawn-loot.") ? lootConfig
+                : getConfig();
 
         String name = config.getString(path + ".display-name");
         List<String> lore = config.getStringList(path + ".lore");
@@ -1049,8 +1218,28 @@ public final class RealisticVillagers extends JavaPlugin {
 
     public void reloadWantedItems() {
         wantedItems.clear();
-        // In the new system every entry in gifts.items is a potential wanted item.
+        // Social gifts (reputation effects) from gifts.items.
         wantedItems.addAll(giftManager.getAllGifts());
+        // Utility items (saddle, food, carpets, etc.) from default-wanted-items.
+        // Parse simple material entries; skip tags (#...) and profession conditions (?...).
+        Set<Material> existing = java.util.EnumSet.noneOf(Material.class);
+        for (Gift g : wantedItems) existing.add(g.getType());
+        for (String entry : getConfig().getStringList("default-wanted-items")) {
+            String s = entry.trim();
+            if (s.isEmpty() || s.startsWith("#")) continue;
+            // Strip profession condition prefix: ?PROFESSION:ITEM -> ITEM
+            int colon = s.indexOf(':');
+            if (colon >= 0) s = s.substring(colon + 1);
+            // Strip amount/modifier suffixes: ITEM(n)* -> ITEM
+            int paren = s.indexOf('(');
+            if (paren >= 0) s = s.substring(0, paren);
+            s = s.replace("*", "").trim();
+            Material material = Material.matchMaterial(s);
+            if (material == null || material == Material.AIR) continue;
+            if (existing.contains(material)) continue;
+            wantedItems.add(new Gift(material, GiftCategory.NEUTRAL, 0, false));
+            existing.add(material);
+        }
     }
 
     public void reloadLoots() {
@@ -1205,7 +1394,7 @@ public final class RealisticVillagers extends JavaPlugin {
     }
 
     public @NotNull List<ItemLoot> createLoot(String sector, @Nullable EquipmentSlot part) {
-        FileConfiguration config = getConfig();
+        FileConfiguration config = lootConfig;
 
         String name = sector + (part != null ? "." + slotName(part) : "");
 
@@ -1259,7 +1448,7 @@ public final class RealisticVillagers extends JavaPlugin {
 
     public String getProfessionFormatted(String profession, boolean isMale) {
         String sex = isMale ? "male" : "female";
-        return getConfig().getString(
+        return variableTextConfig.getString(
                 String.format("variable-text.profession.%s.%s", sex, profession),
                 PluginUtils.capitalizeFully(profession));
     }

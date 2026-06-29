@@ -447,7 +447,7 @@ public class NMSConverter implements INMSConverter {
         try {
             Schedule schedule = name.equals("baby") ? VillagerNPC.VILLAGER_BABY : VillagerNPC.VILLAGER_DEFAULT;
 
-            ConfigurationSection section = plugin.getConfig().getConfigurationSection("schedules." + name);
+            ConfigurationSection section = plugin.getVariableTextConfig().getConfigurationSection("schedules." + name);
             if (section == null) return;
 
             Map<Activity, Timeline> timelines = (Map<Activity, Timeline>) TIMELINES.invoke(schedule);
@@ -455,7 +455,7 @@ public class NMSConverter implements INMSConverter {
 
             ScheduleBuilder builder = new ScheduleBuilder(schedule);
             for (int time : section.getKeys(false).stream().filter(NumberUtils::isCreatable).map(Integer::valueOf).sorted().toList()) {
-                Activity activity = ACTIVITIES.get(plugin.getConfig().getString("schedules." + name + "." + time, "").toLowerCase(Locale.ROOT));
+                Activity activity = ACTIVITIES.get(plugin.getVariableTextConfig().getString("schedules." + name + "." + time, "").toLowerCase(Locale.ROOT));
                 if (activity != null) builder.changeActivityAt(time, activity);
             }
 

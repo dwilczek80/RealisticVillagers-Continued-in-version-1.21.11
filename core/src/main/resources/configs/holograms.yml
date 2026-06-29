@@ -1,0 +1,322 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║          RealisticVillagers — Hologram System Configuration              ║
+# ║                                                                          ║
+# ║  Reload with:  /rv reload                                                ║
+# ║  Color codes:  use & prefix  (e.g. &a=green, &c=red, &e=yellow,          ║
+# ║                               &d=pink, &b=aqua, &8=dark-gray,            ║
+# ║                               &l=bold, &o=italic, &f=white, &r=reset)    ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+hologram:
+
+  # Set to false to disable ALL holograms (menu, head display, info panel,
+  # speech bubbles). Players interact with the old chest-GUI instead.
+  enabled: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # INTERACTION MENU  (appears to the right of the villager when opened)
+  # ─────────────────────────────────────────────────────────────────────────
+  menu:
+    # Horizontal distance (blocks) from the villager centre to the menu panel.
+    side-offset: 1.5
+
+    # Vertical gap (blocks) between consecutive text lines.
+    line-spacing: 0.30
+
+    # The menu closes automatically when the player walks this far away (blocks).
+    auto-close-distance: 7.0
+
+    # How far away (blocks) a player can still see the menu text.
+    view-range: 8.0
+
+    # Whether the menu text is visible through solid blocks.
+    see-through: true
+
+    # Background fill behind each text line (ARGB — each channel 0-255).
+    # alpha: 0 = fully transparent, 255 = fully opaque.
+    background:
+      alpha: 64
+      red:   0
+      green: 0
+      blue:  0
+
+    # Maximum pixel width of one line before it wraps to the next.
+    line-width: 220
+
+    # ⚠ WARNING ──────────────────────────────────────────────────────────────
+    # RAY-CAST — controls hover highlight and click detection math.
+    # Changing these incorrectly breaks clicking entirely.
+    # Leave at defaults unless you fully understand 3D ray-segment geometry.
+    # ─────────────────────────────────────────────────────────────────────────
+    raycast:
+      char-width-blocks: 0.14
+      segment-threshold: 0.25
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # HEAD DISPLAY  (HP / Food shown above the villager's name-tag)
+  # ─────────────────────────────────────────────────────────────────────────
+  head-display:
+    # Set to false to hide the head display entirely.
+    enabled: true
+
+    # Height above the villager's top bounding-box edge (blocks).
+    height-offset: 0.7
+
+    # Vertical gap between multiple head-display lines (blocks).
+    line-spacing: 0.22
+
+    # How far away (blocks) a player can still see the head display.
+    view-range: 8.0
+
+    # ── Head-display lines ────────────────────────────────────────────────
+    # This is a list — you can add, remove, or reorder lines freely.
+    # Each entry is a text template; the plugin replaces the placeholders
+    # before displaying it above the villager.
+    #
+    # Available placeholders:
+    #   %hp%      — current health   (one decimal, e.g. 18.0)
+    #   %max-hp%  — maximum health   (no decimal,  e.g. 20)
+    #   %food%    — food level       (integer 0-20)
+    #
+    # Examples:
+    #   Show HP and food on one line (default):
+    #     - "&cHP: &f%hp%&7/&f%max-hp%  &aFood: &f%food%&7/&f20"
+    #
+    #   Show them on two separate lines:
+    #     - "&cHP: &f%hp% &7/ &f%max-hp%"
+    #     - "&aFood: &f%food% &7/ &f20"
+    #
+    #   Show only HP (remove the food line):
+    #     - "&cHP: &f%hp%&7/&f%max-hp%"
+    #
+    #   Plain numbers only:
+    #     - "%hp% / %max-hp%  |  food: %food%"
+    #
+    # To hide the head display completely use  enabled: false  above.
+    lines:
+      - "&cHP: &f%hp%&7/&f%max-hp%  &aFood: &f%food%&7/&f20"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # INFO PANEL  (appears to the left; toggled with the Informations button)
+  # ─────────────────────────────────────────────────────────────────────────
+  info-panel:
+    children-per-page: 3
+
+    section-headers:
+      basic:  "&e&l— BASIC —"
+      stats:  "&c&l— STATS —"
+      family: "&d&l— FAMILY —"
+
+    navigation:
+      prev:          "&e« &fPrev"
+      next:          "&e» &fNext"
+      prev-children: "&e« &fPrev children"
+      next-children: "&e» &fNext children"
+
+    view-range: 8.0
+    see-through: true
+    background:
+      alpha: 64
+      red:   0
+      green: 0
+      blue:  0
+    line-width: 200
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SPEECH BUBBLE  (typewriter text above a villager during chat)
+  # ─────────────────────────────────────────────────────────────────────────
+  speech-bubble:
+    # Set to false to disable speech bubbles entirely.
+    enabled: true
+    chars-per-tick: 2
+    linger-ticks: 60
+    line-width: 150
+    height-offset: 0.8
+    view-range: 10.0
+    see-through: true
+    background:
+      alpha: 255
+      red:   255
+      green: 255
+      blue:  255
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MENUS
+  #
+  # Each menu is a YAML list.  Every entry is an item with an  id:  that
+  # links it to its in-game action.
+  #
+  #   HOW TO REMOVE AN ITEM
+  #     Add  #  at the very beginning of the line.  One-line items
+  #     (written as  - {id: ..., text: "..."}  ) can be commented out
+  #     with a single  #.  Multi-line items (like  order  in the
+  #     interactions menu) need every sub-line commented out.
+  #
+  #   HOW TO REORDER ITEMS
+  #     Move whole lines up or down.  In-game order matches YAML order.
+  #
+  #   HOW TO RENAME AN ITEM
+  #     Change the  text:  value.  & colour codes are supported.
+  #     The  id:  value must stay exactly as written — it links the line
+  #     to its Java action.  Changing it makes the line non-functional.
+  #
+  #   HOW TO ADD CUSTOM DISPLAY LINES  (separators, headers, labels)
+  #     Use any id that is NOT in the "valid ids" list below and add a
+  #     text:  value.  The line will appear exactly where you put it in
+  #     the list but will NOT be clickable.  Examples:
+  #
+  #       - {id: sep1,   text: "&8─────────────────"}
+  #       - {id: header, text: "&7&lACTIONS"}
+  #       - {id: spacer, text: " "}
+  #
+  #     You can add as many custom lines as you like, anywhere in the
+  #     list, between real items or at the top/bottom.
+  #
+  #   HOVER HIGHLIGHT
+  #     When a player aims at a line the plugin highlights it.
+  #     If the text starts with a colour code + » or « the arrow is
+  #     replaced by §e§l▶.  For any other text the whole line is bolded
+  #     in yellow.  Custom display lines are also highlighted on hover.
+  # ─────────────────────────────────────────────────────────────────────────
+  menus:
+
+    # ── Main menu ──────────────────────────────────────────────────────────
+    #
+    # Valid ids (all optional — remove any to hide it):
+    #
+    #   talk          Opens the Talk sub-menu.
+    #   trade         Opens the villager's trade window.
+    #                 Extra key: locked-text — shown when all trades are
+    #                 exhausted (uses counter maxed out).
+    #   interactions  Opens the Interactions sub-menu.
+    #   informations  Toggles the Info panel on the left side.
+    #
+    main:
+      - {id: talk,         text: "&e» &fTalk"}
+      - {id: trade,        text: "&e» &fTrade",    locked-text: "&8» &7Trade"}
+      - {id: interactions, text: "&e» &fInteraction"}
+      - {id: informations, text: "&7» &fInformations"}
+
+    # ── Talk sub-menu ──────────────────────────────────────────────────────
+    #
+    # Valid ids (all optional — remove any to hide it):
+    #
+    #   chat      Starts a random chat line.
+    #   greet     Villager greets the player.
+    #   story     Villager tells a story.
+    #   joke      Villager tells a joke.
+    #   insult    Player insults the villager (decreases reputation).
+    #   flirt     Player flirts with the villager.
+    #             Automatically hidden when: player is family OR villager
+    #             is a child.  Removing it hides it for everyone.
+    #   proud-of  Player praises the villager (for child villagers only).
+    #             Automatically hidden for adult villagers.
+    #             Removing it hides it for everyone.
+    #   back      Returns to the main menu.  Recommended to keep this.
+    #
+    talk:
+      - {id: chat,     text: "&a» &fChat"}
+      - {id: greet,    text: "&a» &fGreet"}
+      - {id: story,    text: "&a» &fStory"}
+      - {id: joke,     text: "&a» &fJoke"}
+      - {id: insult,   text: "&c» &fInsult"}
+      - {id: flirt,    text: "&d» &fFlirt"}
+      - {id: proud-of, text: "&b» &fProud Of"}
+      - {id: back,     text: "&c« &fBack"}
+
+    # ── Interactions sub-menu ──────────────────────────────────────────────
+    interactions:
+
+      # Text appended to any option the player cannot use due to permissions.
+      # Set to "" to show no suffix (the line is still greyed out).
+      locked-suffix: " &7🔒"
+
+      # Valid ids (all optional — remove any to hide it):
+      #
+      #   gift            Player gives an item to the villager.
+      #
+      #   order           Cycles the villager's movement order:
+      #                   Follow → Stay → Wander → Follow …
+      #                   Hidden for players without the order permission.
+      #                   Extra keys instead of  text:
+      #                     prefix:      label before the current state name
+      #                     follow-text: label shown when currently FOLLOWING
+      #                     stay-text:   label shown when currently STAYING
+      #                     wander-text: label shown when currently WANDERING
+      #
+      #   inventory       Opens the villager's equipment/inventory screen.
+      #                   Greyed out when the player lacks the permission.
+      #
+      #   set-home        Sets the villager's home to the current location.
+      #                   Greyed out when the player lacks the permission.
+      #
+      #   combat          Opens the combat settings GUI.
+      #                   Greyed out when the player lacks the permission.
+      #
+      #   procreate       Starts the procreation interaction.
+      #                   Automatically hidden when the player is NOT the
+      #                   villager's partner OR the villager is a child.
+      #                   Removing it hides it for everyone.
+      #
+      #   divorce         Shows a divorce button.
+      #                   Automatically hidden when the player is NOT the
+      #                   villager's partner.  On click switches to the
+      #                   confirmation step below.
+      #
+      #   divorce-confirm Confirm button (replaces divorce when clicked once).
+      #                   Keep this together with divorce.
+      #
+      #   divorce-cancel  Cancel button shown next to divorce-confirm.
+      #                   Keep this together with divorce-confirm.
+      #
+      #   back            Returns to the main menu.  Recommended to keep.
+      #
+      items:
+        - {id: gift,            text: "&e» &fGift"}
+        - id: order             # multi-key item — keep all lines together when commenting out
+          prefix:      "&e» &fOrder: "
+          follow-text: "&aFollow"
+          stay-text:   "&eStay"
+          wander-text: "&7Wander"
+        - {id: inventory,       text: "Inventory"}
+        - {id: set-home,        text: "Set Home"}
+        - {id: combat,          text: "Combat"}
+        - {id: procreate,       text: "Procreate"}
+        - {id: divorce,         text: "&c» &fDivorce"}
+        - {id: divorce-confirm, text: "&c&l» Confirm?"}
+        - {id: divorce-cancel,  text: "&7» &fCancel"}
+        - {id: back,            text: "&c« &fBack"}
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # INFO PANEL TEXT PREFIXES  (what appears before each value in the panel)
+  # ─────────────────────────────────────────────────────────────────────────
+  labels:
+    info:
+      # Basic section
+      name-prefix:  "&7Name: &f"
+      sex-prefix:   "&7Sex: &f"
+      age-prefix:   "&7Age: &f"
+      type-prefix:  "&7Type: &f"
+      prof-prefix:  "&7Prof: &f"
+      level-prefix: " &8Lv."
+      # Stats section
+      hp-prefix:    "&cHP: &f"
+      hp-separator: "&7/&f"
+      food-prefix:  "&aFood: &f"
+      food-max:     "&7/&f20"
+      rep-prefix:   "&6Rep: "
+      act-prefix:   "&eAct: &f"
+      # Family section
+      partner-prefix:    "&dPartner: "
+      partner-unmarried: "&7Unmarried"
+      father-prefix:     "&bFather: "
+      mother-prefix:     "&dMother: "
+      children-header:   "&7Children "
+      children-none:     "&7Children: &f"
+      children-bullet:   "&8 • &f"
+      # Page indicator — %current% and %total% are replaced automatically.
+      page-format:       "&8[&7%current%&8/&7%total%&8]"
+    # MAIN MENU labels
+    menu:
+      # Shown above the menu items; colored dynamically by reputation level.
+      rep-prefix: "Rep: "

@@ -566,7 +566,8 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         OfflineVillagerNPC.getAndSet(offline, OfflineVillagerNPC::getSex, this::setSex, "");
         if (sex.isEmpty()) sex = PluginUtils.getRandomSex();
         if (tracker.shouldRename(villagerName)) {
-            setVillagerName(tracker.getRandomNameBySex(sex));
+            String regionKey = getBukkitEntity().getVillagerType().name().toLowerCase(java.util.Locale.ROOT);
+            setVillagerName(tracker.getRandomNameBySex(sex, regionKey));
         }
         isPartnerVillager = offline != null && offline.isPartnerVillager();
         partner = OfflineVillagerNPC.get(offline, OfflineVillagerNPC::getPartner);
@@ -1702,7 +1703,12 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         if (isExpectingGiftFrom(thrower)) return true;
         if (fished(stack)) return true;
 
-        return thrower == null && plugin.getWantedItem(this, CraftItemStack.asCraftMirror(stack), true) != null;
+        org.bukkit.inventory.ItemStack bStack = CraftItemStack.asCraftMirror(stack);
+        if (PluginUtils.isItem(bStack, plugin.getIsCrossKey())
+                && !PluginUtils.hasAnyOf((org.bukkit.inventory.InventoryHolder) getBukkitEntity(), plugin.getIsCrossKey())) {
+            return true;
+        }
+        return thrower == null && plugin.getWantedItem(this, bStack, true) != null;
     }
 
     public boolean fished(ItemStack item) {

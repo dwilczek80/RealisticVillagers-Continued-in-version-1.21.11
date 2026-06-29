@@ -7,6 +7,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import me.matsubara.realisticvillagers.data.ExpectingType;
+import net.wesjd.anvilgui.AnvilGUI;
 import me.matsubara.realisticvillagers.data.GUIInteractType;
 import me.matsubara.realisticvillagers.data.InteractType;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
@@ -22,7 +23,8 @@ import me.matsubara.realisticvillagers.task.PreviewTask;
 import me.matsubara.realisticvillagers.tracker.VillagerTracker;
 import me.matsubara.realisticvillagers.util.ItemBuilder;
 import me.matsubara.realisticvillagers.util.PluginUtils;
-import net.wesjd.anvilgui.AnvilGUI;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
@@ -56,12 +58,16 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 public final class InventoryListeners implements Listener {
 
     private final RealisticVillagers plugin;
+    private final Map<UUID, ChatInputContext> pendingChatInput = new HashMap<>();
+
+    private record ChatInputContext(Consumer<String> onInput, Runnable onCancel) {}
 
     private static final UnaryOperator<String> REPLACE_TIME = string -> string.replace("%time%",
             String.valueOf(Config.TIME_TO_EXPECT.asInt() / 20));
@@ -184,28 +190,11 @@ public final class InventoryListeners implements Listener {
                 whistle.nextPage(isShiftClick);
                 return;
             } else if (isCustomItem(current, "search")) {
-                AtomicBoolean success = new AtomicBoolean();
-                new AnvilGUI.Builder()
-                        .onClick((slot, snapshot) -> {
-                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
-                            String text = snapshot.getText();
-                            if (text.isBlank()) return RealisticVillagers.CLOSE_RESPONSE;
-
-                            openWhistleGUI(snapshot.getPlayer(), null, text);
-                            success.set(true);
-
-                            return RealisticVillagers.CLOSE_RESPONSE;
-                        })
-                        .title(Config.WHISTLE_SEARCH_TITLE.asStringTranslated())
-                        .text(Config.WHISTLE_SEARCH_TEXT.asStringTranslated())
-                        .itemLeft(new ItemStack(Material.PAPER))
-                        .plugin(plugin)
-                        .onClose(snapshot -> {
-                            if (success.get()) return;
-                            openWhistleGUI(snapshot.getPlayer(), whistle.getCurrentPage(), null);
-                        })
-                        .open((Player) event.getWhoClicked());
+                closeInventory(player);
+                pendingChatInput.put(player.getUniqueId(), new ChatInputContext(
+                        text -> openWhistleGUI(player, null, text),
+                        () -> openWhistleGUI(player, whistle.getCurrentPage(), null)));
+                player.sendMessage("§e[RV] §fType your search term in chat, or type §ccancel§f to go back.");
                 return;
             } else if (isCustomItem(current, "clear-search")) {
                 openWhistleGUI(player, whistle.getCurrentPage(), null);
@@ -281,28 +270,11 @@ public final class InventoryListeners implements Listener {
                 return;
             } else if (isCustomItem(current, "search")) {
                 players.setShouldStopInteracting(false);
-                AtomicBoolean success = new AtomicBoolean();
-                new AnvilGUI.Builder()
-                        .onClick((slot, snapshot) -> {
-                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
-                            String text = snapshot.getText();
-                            if (text.isBlank()) return RealisticVillagers.CLOSE_RESPONSE;
-
-                            openPlayersGUI(npc, snapshot.getPlayer(), null, text);
-                            success.set(true);
-
-                            return RealisticVillagers.CLOSE_RESPONSE;
-                        })
-                        .title(Config.PLAYERS_TITLE.asStringTranslated())
-                        .text(Config.PLAYERS_TEXT.asStringTranslated())
-                        .itemLeft(new ItemStack(Material.PAPER))
-                        .plugin(plugin)
-                        .onClose(snapshot -> {
-                            if (success.get()) return;
-                            openPlayersGUI(npc, snapshot.getPlayer(), players.getCurrentPage(), null);
-                        })
-                        .open(player);
+                closeInventory(player);
+                pendingChatInput.put(player.getUniqueId(), new ChatInputContext(
+                        text -> openPlayersGUI(npc, player, null, text),
+                        () -> openPlayersGUI(npc, player, players.getCurrentPage(), null)));
+                player.sendMessage("§e[RV] §fType your search term in chat, or type §ccancel§f to go back.");
                 return;
             } else if (isCustomItem(current, "clear-search")) {
                 players.setShouldStopInteracting(false);
@@ -310,7 +282,7 @@ public final class InventoryListeners implements Listener {
                 return;
             } else if (isCustomItem(current, "add-new-player")) {
                 players.setShouldStopInteracting(false);
-                openAddNewPlayerGUI(player, npc);
+                runTask(() -> openAddNewPlayerGUI(player, npc));
                 return;
             }
 
@@ -341,28 +313,11 @@ public final class InventoryListeners implements Listener {
                 combat.nextPage(isShiftClick);
             } else if (isCustomItem(current, "search")) {
                 combat.setShouldStopInteracting(false);
-                AtomicBoolean success = new AtomicBoolean(false);
-                new AnvilGUI.Builder()
-                        .onClick((slot, snapshot) -> {
-                            if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
-                            String text = snapshot.getText();
-                            if (text.isBlank()) return RealisticVillagers.CLOSE_RESPONSE;
-
-                            openCombatGUI(npc, snapshot.getPlayer(), null, text, combat.isAnimal());
-                            success.set(true);
-
-                            return RealisticVillagers.CLOSE_RESPONSE;
-                        })
-                        .onClose(snapshot -> {
-                            if (success.get()) return;
-                            openCombatGUI(npc, snapshot.getPlayer(), combat.getCurrent(), null, combat.isAnimal());
-                        })
-                        .title(Config.COMBAT_SEARCH_TITLE.asStringTranslated())
-                        .text(Config.COMBAT_SEARCH_TEXT.asStringTranslated())
-                        .itemLeft(new ItemStack(Material.PAPER))
-                        .plugin(plugin)
-                        .open((Player) event.getWhoClicked());
+                closeInventory(player);
+                pendingChatInput.put(player.getUniqueId(), new ChatInputContext(
+                        text -> openCombatGUI(npc, player, null, text, combat.isAnimal()),
+                        () -> openCombatGUI(npc, player, combat.getCurrent(), null, combat.isAnimal())));
+                player.sendMessage("§e[RV] §fType your search term in chat, or type §ccancel§f to go back.");
             } else if (isCustomItem(current, "clear-search")) {
                 combat.setShouldStopInteracting(false);
                 openCombatGUI(npc, player, null, null, combat.isAnimal());
@@ -391,13 +346,12 @@ public final class InventoryListeners implements Listener {
             return;
         }
 
-        int reputation = npc.getReputation(player);
-
         if (interact instanceof CombatSettingsGUI settings) {
             if (isCustomItem(current, "players")) {
                 settings.setShouldStopInteracting(false);
                 if (npc.getPlayers().isEmpty()) {
-                    openAddNewPlayerGUI(player, npc);
+                    // Defer past the InventoryClickEvent so CombatSettingsGUI fully closes first.
+                    runTask(() -> openAddNewPlayerGUI(player, npc));
                 } else {
                     openPlayersGUI(npc, player, null, null);
                 }
@@ -408,15 +362,18 @@ public final class InventoryListeners implements Listener {
                 settings.setShouldStopInteracting(false);
                 openCombatGUI(npc, player, null, null, false);
             } else if (isCustomItem(current, "back")) {
-                runTask(() -> new MainGUI(plugin, npc, player));
+                if (VillagerListeners.HOLOGRAM_SUPPORTED) {
+                    // Hologram system active: re-open the hologram (it was closed when CombatSettingsGUI opened).
+                    settings.setShouldStopInteracting(false);
+                    runTask(() -> plugin.getHologramManager().openMenu(player, npc));
+                } else {
+                    runTask(() -> new MainGUI(plugin, npc, player));
+                }
             }
             return;
         }
 
         if (!(interact instanceof MainGUI main)) return;
-
-        boolean isFamily = npc.isFamily(player, true);
-        boolean isPartner = npc.isPartner(player);
 
         Messages messages = plugin.getMessages();
 
@@ -430,145 +387,19 @@ public final class InventoryListeners implements Listener {
             return;
         } else if (isCustomItem(current, "inspect-inventory")) {
             main.setShouldStopInteracting(false);
-            runTask(() -> new EquipmentGUI(plugin, npc, player));
+            handleInspectInventory(npc, player);
             return;
         } else if (isCustomItem(current, "gift")) {
-            ItemStack mainHand = player.getInventory().getItemInMainHand();
-            if (mainHand.getType().isAir()) {
-                messages.send(player, npc, Messages.Message.GIFT_EXPECTING);
-            } else {
-                boolean isRing = PluginUtils.isItem(mainHand, plugin.getIsRingKey());
-                boolean isCross = PluginUtils.isItem(mainHand, plugin.getIsCrossKey());
-                boolean isValidGift = isRing || isCross
-                        || plugin.getGiftManager().getGift(mainHand.getType()) != null;
-                if (!isValidGift) {
-                    int badRep = plugin.getConfig().getInt("bad-gift-reputation", 5);
-                    if (badRep > 1) npc.addMinorNegative(player, badRep);
-                    npc.bukkit().playEffect(EntityEffect.VILLAGER_ANGRY);
-                    plugin.getMessages().sendRandomGiftMessage(player, npc, null);
-                } else if (plugin.getCooldownManager().isOnCooldown(player, villager, "gift")) {
-                    messages.send(player, npc, Messages.Message.GIFT_COOLDOWN);
-                } else {
-                    ItemStack giftItem = mainHand.clone();
-                    giftItem.setAmount(1);
-                    if (mainHand.getAmount() > 1) {
-                        mainHand.setAmount(mainHand.getAmount() - 1);
-                    } else {
-                        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
-                    }
-                    plugin.getExpectingManager().handleGift(npc, player, giftItem);
-                    plugin.getCooldownManager().addCooldown(player, villager, "gift");
-                }
-            }
-            closeInventory(player);
+            handleGift(npc, player);
         } else if (isCustomItem(current, "procreate")) {
-            // Return if it's a kid.
-            if (conditionNotMet(player, villager.isAdult(), Messages.Message.INTERACT_FAIL_NOT_AN_ADULT)) return;
-
-            // Return if not married.
-            if (conditionNotMet(player, isPartner, Messages.Message.INTERACT_FAIL_NOT_MARRIED)) return;
-
-            // Return if same sex (player and villager must have different sexes unless ignore-sex is on).
-            if (!Config.IGNORE_SEX_WHEN_PROCREATING.asBool()) {
-                String playerSex = player.getPersistentDataContainer()
-                        .getOrDefault(plugin.getPlayerSexKey(), PersistentDataType.STRING, "male");
-                String villagerSex = npc.getSex().isEmpty() ? "female" : npc.getSex();
-                if (conditionNotMet(player, !playerSex.equalsIgnoreCase(villagerSex), Messages.Message.PROCREATE_FAIL_SAME_SEX)) return;
-            }
-
-            if (reputation < Config.REPUTATION_REQUIRED_TO_PROCREATE.asInt()) {
-                messages.send(player, npc, Messages.Message.PROCREATE_FAIL_LOW_REPUTATION);
-                closeInventory(player);
-                return;
-            }
-
-            long elapsed = System.currentTimeMillis() - npc.getLastProcreation(),
-                    cooldown = Config.PROCREATION_COOLDOWN.asLong(),
-                    leftMillis = cooldown - elapsed,
-                    leftSeconds = (leftMillis / 1000L) % 60L;
-
-            if (elapsed < cooldown && leftSeconds > 0) {
-                String next = PluginUtils.formatMillis(leftMillis);
-                messages.send(player, npc, Messages.Message.PROCREATE_FAIL_HAS_BABY);
-                messages.send(player, Messages.Message.PROCREATE_COOLDOWN, string -> string.replace("%time%", next));
-                closeInventory(player);
-                return;
-            }
-
-            npc.setProcreatingWith(player.getUniqueId());
-            new BabyTask(plugin, villager, player).runTaskTimer(plugin, 0L, 20L);
+            handleProcreate(npc, player);
         } else if (isCustomItem(current, "divorce")) {
-            // Return if it's a kid.
-            if (conditionNotMet(player, villager.isAdult(), Messages.Message.INTERACT_FAIL_NOT_AN_ADULT)) return;
-
-            // Return if not married.
-            if (conditionNotMet(player, isPartner, Messages.Message.INTERACT_FAIL_NOT_MARRIED)) return;
-
-            // Only remove divorce papers if the villager isn't a cleric partner.
-            boolean hasDivorcePapers = (isPartner && villager.getProfession() == Villager.Profession.CLERIC)
-                    || removeDivorcePapers(player.getInventory());
-
-            int lossReputation;
-            if (hasDivorcePapers) {
-                lossReputation = Config.DIVORCE_REPUTATION_LOSS_PAPERS.asInt();
-            } else {
-                lossReputation = Config.DIVORCE_REPUTATION_LOSS.asInt();
-            }
-
-            if (lossReputation > 1) npc.addMinorNegative(player, lossReputation);
-
-            if (hasDivorcePapers) {
-                messages.send(player, npc, Messages.Message.DIVORCE_PAPERS);
-            } else {
-                messages.send(player, npc, Messages.Message.DIVORCE_NORMAL);
-            }
-
-            // Divorce, remove and drop previous wedding ring.
-            npc.divorceAndDropRing(player);
+            handleDivorce(npc, player);
         } else if (isCustomItem(current, "combat")) {
-            if (notAllowedToModify(player,
-                    isPartner,
-                    isFamily,
-                    Config.WHO_CAN_MODIFY_VILLAGER_COMBAT,
-                    true,
-                    "realisticvillagers.bypass.combat")) return;
-            main.setShouldStopInteracting(false);
-            runTask(() -> new CombatSettingsGUI(plugin, npc, player));
+            if (handleCombatSettingsGUI(npc, player)) main.setShouldStopInteracting(false);
             return;
         } else if (isCustomItem(current, "set-home")) {
-            if (notAllowedToModify(player,
-                    isPartner,
-                    isFamily,
-                    Config.WHO_CAN_MODIFY_VILLAGER_HOME,
-                    true,
-                    "realisticvillagers.bypass.sethome")) return;
-            ItemStack mainHand = player.getInventory().getItemInMainHand();
-            boolean holdingBed = !mainHand.getType().isAir() && mainHand.getType().name().endsWith("_BED");
-            if (holdingBed) {
-                // Mark one bed from the player's hand with the villager UUID
-                ItemStack markedBed = mainHand.clone();
-                markedBed.setAmount(1);
-                ItemMeta bedMeta = markedBed.getItemMeta();
-                if (bedMeta != null) {
-                    bedMeta.getPersistentDataContainer().set(
-                            plugin.getBedVillagerKey(), PersistentDataType.STRING,
-                            npc.bukkit().getUniqueId().toString());
-                    bedMeta.setDisplayName(PluginUtils.translate("&5" + npc.getVillagerName() + "'s Bed"));
-                    bedMeta.setLore(Collections.singletonList(PluginUtils.translate("&7Place to assign as home")));
-                    try { bedMeta.setEnchantmentGlintOverride(true); } catch (Throwable ignored) {}
-                    markedBed.setItemMeta(bedMeta);
-                }
-                if (mainHand.getAmount() > 1) {
-                    mainHand.setAmount(mainHand.getAmount() - 1);
-                    player.getInventory().addItem(markedBed);
-                } else {
-                    player.getInventory().setItemInMainHand(markedBed);
-                }
-                messages.send(player, Messages.Message.BED_MARKED, s -> s.replace("%villager-name%", npc.getVillagerName()));
-            } else {
-                messages.send(player, Messages.Message.SELECT_BED);
-            }
-            closeInventory(player);
+            handleSetHome(npc, player);
         } else if (isCustomItem(current, "divorce-papers")) {
             // If it's (ask) papers item, then the villager is INDEED a cleric.
             if (!plugin.isMarried(player)) {
@@ -646,54 +477,73 @@ public final class InventoryListeners implements Listener {
     }
 
     private void openAddNewPlayerGUI(Player player, IVillagerNPC npc) {
-        AtomicBoolean success = new AtomicBoolean();
         new AnvilGUI.Builder()
-                .onClick((slot, snapshot) -> {
-                    Player opener = snapshot.getPlayer();
-                    if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
+                .plugin(plugin)
+                .title(Config.PLAYERS_TITLE.asStringTranslated())
+                .text(Config.PLAYERS_TEXT.asStringTranslated())
+                .itemLeft(new ItemStack(Material.PLAYER_HEAD))
+                .onClick((slot, state) -> {
+                    if (slot != AnvilGUI.Slot.OUTPUT) {
+                        return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(state.getText()));
+                    }
+                    String text = state.getText().trim();
                     Messages messages = plugin.getMessages();
 
-                    String text = ChatColor.stripColor(snapshot.getText().strip());
                     if (plugin.getTracker().isInvalidNametag(text)) {
-                        messages.send(opener, Messages.Message.INVALID_NAME);
+                        messages.send(player, Messages.Message.INVALID_NAME);
+                        npc.stopInteracting();
                         return RealisticVillagers.CLOSE_RESPONSE;
                     }
 
                     @SuppressWarnings("deprecation") OfflinePlayer target = Bukkit.getOfflinePlayer(text);
-
                     String targetName = target.getName();
                     UUID targetUUID = target.getUniqueId();
 
                     if (targetName == null) {
-                        messages.send(opener, Messages.Message.UNKNOWN_PLAYER);
-                    } else if (opener.getUniqueId().equals(targetUUID)) {
-                        messages.send(opener, Messages.Message.NOT_YOURSELF);
+                        messages.send(player, Messages.Message.UNKNOWN_PLAYER);
+                    } else if (player.getUniqueId().equals(targetUUID)) {
+                        messages.send(player, Messages.Message.NOT_YOURSELF);
                     } else if (npc.getPlayers().contains(targetUUID)) {
-                        messages.send(opener, Messages.Message.ALREADY_ADDED);
+                        messages.send(player, Messages.Message.ALREADY_ADDED);
                     } else if (!target.hasPlayedBefore()) {
-                        messages.send(opener, Messages.Message.HAS_NEVER_PLAYER_BEFORE);
+                        messages.send(player, Messages.Message.HAS_NEVER_PLAYER_BEFORE);
                     } else if (npc.isFamily(targetUUID, true)) {
-                        messages.send(opener, Messages.Message.PLAYER_IS_FAMILY_MEMBER);
+                        messages.send(player, Messages.Message.PLAYER_IS_FAMILY_MEMBER);
                     } else {
-                        success.set(true);
-                        messages.send(opener, Messages.Message.PLAYERS_ADDED, string -> string.replace("%player-name%", targetName));
+                        messages.send(player, Messages.Message.PLAYERS_ADDED,
+                                s -> s.replace("%player-name%", targetName));
                         npc.getPlayers().add(targetUUID);
-                        openPlayersGUI(npc, snapshot.getPlayer(), null, null);
-                        return Collections.emptyList();
+                        openPlayersGUI(npc, player, null, null);
+                        return RealisticVillagers.CLOSE_RESPONSE;
                     }
 
+                    npc.stopInteracting();
                     return RealisticVillagers.CLOSE_RESPONSE;
                 })
-                .onClose(snapshot -> {
-                    if (success.get()) return;
-                    npc.stopInteracting();
-                })
-                .title(Config.PLAYERS_TITLE.asStringTranslated())
-                .text(Config.PLAYERS_TEXT.asStringTranslated())
-                .itemLeft(new ItemStack(Material.PAPER))
-                .plugin(plugin)
                 .open(player);
+    }
+
+    @SuppressWarnings("deprecation")
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
+    public void onChat(@NotNull AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        ChatInputContext ctx = pendingChatInput.remove(uuid);
+        if (ctx == null) return;
+
+        event.setCancelled(true);
+        String input = ChatColor.stripColor(event.getMessage().trim());
+        if (input.equalsIgnoreCase("cancel") || input.isBlank()) {
+            plugin.getServer().getScheduler().runTask(plugin, ctx.onCancel());
+        } else {
+            plugin.getServer().getScheduler().runTask(plugin, () -> ctx.onInput().accept(input));
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onPlayerQuit(@NotNull PlayerQuitEvent event) {
+        pendingChatInput.remove(event.getPlayer().getUniqueId());
     }
 
     public boolean isCustomItem(@NotNull ItemStack item, String id) {
@@ -742,6 +592,153 @@ public final class InventoryListeners implements Listener {
             messages.send(player, npc, Messages.Message.valueOf(typeName + "_LOW_REPUTATION"));
             npc.shakeHead(player);
         }
+    }
+
+    public void handleGift(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        if (!(npc.bukkit() instanceof Villager villager)) return;
+        Messages messages = plugin.getMessages();
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        if (mainHand.getType().isAir()) {
+            messages.send(player, npc, Messages.Message.GIFT_EXPECTING);
+        } else {
+            boolean isRing = PluginUtils.isItem(mainHand, plugin.getIsRingKey());
+            boolean isCross = PluginUtils.isItem(mainHand, plugin.getIsCrossKey());
+            boolean isValidGift = isRing || isCross
+                    || plugin.getGiftManager().getGift(mainHand.getType()) != null;
+            if (!isValidGift) {
+                int badRep = plugin.getConfig().getInt("bad-gift-reputation", 5);
+                if (badRep > 1) npc.addMinorNegative(player, badRep);
+                npc.bukkit().playEffect(EntityEffect.VILLAGER_ANGRY);
+                plugin.getMessages().sendRandomGiftMessage(player, npc, null);
+            } else if (plugin.getCooldownManager().isOnCooldown(player, villager, "gift")) {
+                messages.send(player, npc, Messages.Message.GIFT_COOLDOWN);
+            } else {
+                ItemStack giftItem = mainHand.clone();
+                giftItem.setAmount(1);
+                if (mainHand.getAmount() > 1) {
+                    mainHand.setAmount(mainHand.getAmount() - 1);
+                } else {
+                    player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                }
+                plugin.getExpectingManager().handleGift(npc, player, giftItem);
+                plugin.getCooldownManager().addCooldown(player, villager, "gift");
+            }
+        }
+        closeInventory(player);
+    }
+
+    public void handleProcreate(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        if (!(npc.bukkit() instanceof Villager villager)) return;
+        Messages messages = plugin.getMessages();
+
+        if (conditionNotMet(player, villager.isAdult(), Messages.Message.INTERACT_FAIL_NOT_AN_ADULT)) return;
+        if (conditionNotMet(player, npc.isPartner(player), Messages.Message.INTERACT_FAIL_NOT_MARRIED)) return;
+
+        if (!Config.IGNORE_SEX_WHEN_PROCREATING.asBool()) {
+            String playerSex = player.getPersistentDataContainer()
+                    .getOrDefault(plugin.getPlayerSexKey(), PersistentDataType.STRING, "male");
+            String villagerSex = npc.getSex().isEmpty() ? "female" : npc.getSex();
+            if (conditionNotMet(player, !playerSex.equalsIgnoreCase(villagerSex), Messages.Message.PROCREATE_FAIL_SAME_SEX)) return;
+        }
+
+        int reputation = npc.getReputation(player);
+        if (reputation < Config.REPUTATION_REQUIRED_TO_PROCREATE.asInt()) {
+            messages.send(player, npc, Messages.Message.PROCREATE_FAIL_LOW_REPUTATION);
+            closeInventory(player);
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - npc.getLastProcreation(),
+                cooldown = Config.PROCREATION_COOLDOWN.asLong(),
+                leftMillis = cooldown - elapsed,
+                leftSeconds = (leftMillis / 1000L) % 60L;
+
+        if (elapsed < cooldown && leftSeconds > 0) {
+            String next = PluginUtils.formatMillis(leftMillis);
+            messages.send(player, npc, Messages.Message.PROCREATE_FAIL_HAS_BABY);
+            messages.send(player, Messages.Message.PROCREATE_COOLDOWN, string -> string.replace("%time%", next));
+            closeInventory(player);
+            return;
+        }
+
+        npc.setProcreatingWith(player.getUniqueId());
+        new BabyTask(plugin, villager, player).runTaskTimer(plugin, 0L, 20L);
+        closeInventory(player);
+    }
+
+    public void handleDivorce(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        if (!(npc.bukkit() instanceof Villager villager)) return;
+        Messages messages = plugin.getMessages();
+        boolean isPartner = npc.isPartner(player);
+
+        if (conditionNotMet(player, villager.isAdult(), Messages.Message.INTERACT_FAIL_NOT_AN_ADULT)) return;
+        if (conditionNotMet(player, isPartner, Messages.Message.INTERACT_FAIL_NOT_MARRIED)) return;
+
+        boolean hasDivorcePapers = (isPartner && villager.getProfession() == Villager.Profession.CLERIC)
+                || removeDivorcePapers(player.getInventory());
+
+        int lossReputation = hasDivorcePapers
+                ? Config.DIVORCE_REPUTATION_LOSS_PAPERS.asInt()
+                : Config.DIVORCE_REPUTATION_LOSS.asInt();
+
+        if (lossReputation > 1) npc.addMinorNegative(player, lossReputation);
+
+        if (hasDivorcePapers) {
+            messages.send(player, npc, Messages.Message.DIVORCE_PAPERS);
+        } else {
+            messages.send(player, npc, Messages.Message.DIVORCE_NORMAL);
+        }
+
+        npc.divorceAndDropRing(player);
+        closeInventory(player);
+    }
+
+    public void handleSetHome(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        boolean isPartner = npc.isPartner(player);
+        boolean isFamily = npc.isFamily(player, true);
+        if (notAllowedToModify(player, isPartner, isFamily,
+                Config.WHO_CAN_MODIFY_VILLAGER_HOME, true, "realisticvillagers.bypass.sethome")) return;
+
+        Messages messages = plugin.getMessages();
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        boolean holdingBed = !mainHand.getType().isAir() && mainHand.getType().name().endsWith("_BED");
+        if (holdingBed) {
+            ItemStack markedBed = mainHand.clone();
+            markedBed.setAmount(1);
+            ItemMeta bedMeta = markedBed.getItemMeta();
+            if (bedMeta != null) {
+                bedMeta.getPersistentDataContainer().set(
+                        plugin.getBedVillagerKey(), PersistentDataType.STRING,
+                        npc.bukkit().getUniqueId().toString());
+                bedMeta.setDisplayName(PluginUtils.translate("&5" + npc.getVillagerName() + "'s Bed"));
+                bedMeta.setLore(Collections.singletonList(PluginUtils.translate("&7Place to assign as home")));
+                try { bedMeta.setEnchantmentGlintOverride(true); } catch (Throwable ignored) {}
+                markedBed.setItemMeta(bedMeta);
+            }
+            if (mainHand.getAmount() > 1) {
+                mainHand.setAmount(mainHand.getAmount() - 1);
+                player.getInventory().addItem(markedBed);
+            } else {
+                player.getInventory().setItemInMainHand(markedBed);
+            }
+            messages.send(player, Messages.Message.BED_MARKED, s -> s.replace("%villager-name%", npc.getVillagerName()));
+        } else {
+            messages.send(player, Messages.Message.SELECT_BED);
+        }
+        closeInventory(player);
+    }
+
+    public void handleInspectInventory(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        runTask(() -> new EquipmentGUI(plugin, npc, player));
+    }
+
+    public boolean handleCombatSettingsGUI(@NotNull IVillagerNPC npc, @NotNull Player player) {
+        boolean isPartner = npc.isPartner(player);
+        boolean isFamily = npc.isFamily(player, true);
+        if (notAllowedToModify(player, isPartner, isFamily,
+                Config.WHO_CAN_MODIFY_VILLAGER_COMBAT, true, "realisticvillagers.bypass.combat")) return false;
+        runTask(() -> new CombatSettingsGUI(plugin, npc, player));
+        return true;
     }
 
     private boolean handleVTL(Player player, Villager villager) {
@@ -864,7 +861,10 @@ public final class InventoryListeners implements Listener {
         EntityEffect effect = chatEvent.isSuccess() ? interactType.isFlirt() ? EntityEffect.VILLAGER_HEART : EntityEffect.VILLAGER_HAPPY : EntityEffect.VILLAGER_ANGRY;
         npc.bukkit().playEffect(effect);
 
-        plugin.getMessages().sendRandomInteractionMessage(player, npc, interactType, chatEvent.isSuccess());
+        String rawMsg = plugin.getMessages().sendRandomInteractionMessage(player, npc, interactType, chatEvent.isSuccess());
+        if (!rawMsg.isEmpty()) {
+            plugin.getHologramManager().showSpeech(npc.bukkit(), rawMsg);
+        }
     }
 
     private void handleSkinGUI(@NotNull InventoryClickEvent event, SkinGUI skin) {
@@ -892,28 +892,11 @@ public final class InventoryListeners implements Listener {
             skin.nextPage(isShiftClick);
             return;
         } else if (isCustomItem(current, "search")) {
-            AtomicBoolean success = new AtomicBoolean();
-            new AnvilGUI.Builder()
-                    .onClick((slot, snapshot) -> {
-                        if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-
-                        String text = snapshot.getText();
-                        if (text.isBlank()) return RealisticVillagers.CLOSE_RESPONSE;
-
-                        runTask(() -> SkinGUI.openMenu(plugin, snapshot.getPlayer(), currentSex, isAdult, null, text));
-                        success.set(true);
-
-                        return RealisticVillagers.CLOSE_RESPONSE;
-                    })
-                    .title(Config.SKIN_SEARCH_TITLE.asStringTranslated())
-                    .text(Config.SKIN_SEARCH_TEXT.asStringTranslated())
-                    .itemLeft(new ItemStack(Material.PAPER))
-                    .plugin(plugin)
-                    .onClose(snapshot -> {
-                        if (success.get()) return;
-                        runTask(() -> SkinGUI.openMenu(plugin, snapshot.getPlayer(), currentSex, isAdult, skin.getCurrentPage(), null));
-                    })
-                    .open((Player) event.getWhoClicked());
+            closeInventory(player);
+            pendingChatInput.put(player.getUniqueId(), new ChatInputContext(
+                    text -> SkinGUI.openMenu(plugin, player, currentSex, isAdult, null, text),
+                    () -> SkinGUI.openMenu(plugin, player, currentSex, isAdult, skin.getCurrentPage(), null)));
+            player.sendMessage("§e[RV] §fType your search term in chat, or type §ccancel§f to go back.");
             return;
         } else if (isCustomItem(current, "clear-search")) {
             openSkinGUI(player, currentSex, isAdult);
@@ -1149,32 +1132,24 @@ public final class InventoryListeners implements Listener {
         if (!isCustomItem(current, "from-player")) return;
 
         // Add new skin from a player.
-        AtomicBoolean success = new AtomicBoolean();
-        new AnvilGUI.Builder()
-                .onClick((slot, snapshot) -> {
-                    if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
-                    Player opener = snapshot.getPlayer();
-
-                    String result = snapshot.getText();
+        closeInventory(player);
+        pendingChatInput.put(player.getUniqueId(), new ChatInputContext(
+                result -> {
                     if (plugin.getTracker().isInvalidNametag(result)) {
-                        return RealisticVillagers.CLOSE_RESPONSE;
+                        runTask(() -> new NewSkinGUI(plugin, player, skin.getPreviousSource()));
+                        return;
                     }
-
-                    success.set(true);
 
                     Player target = Bukkit.getPlayer(result);
                     GameProfile profile;
-
                     String sex = source.isMale() ? "male" : "female";
 
-                    // Player is online, get texture data from the profile.
                     if (target != null && (profile = plugin.getConverter().getPlayerProfile(target)) != null) {
                         Property property = profile.getProperties().get("textures").iterator().next();
-                        tracker.addNewSkin(opener, null, "none", sex, source.isAdult(), property.getValue(), property.getSignature());
-                        return RealisticVillagers.CLOSE_RESPONSE;
+                        tracker.addNewSkin(player, null, "none", sex, source.isAdult(), property.getValue(), property.getSignature());
+                        return;
                     }
 
-                    // Player is offline, we need to get the texture from minecraft servers...
                     plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
                         try {
                             URL profiles = new URL("https://api.mojang.com/users/profiles/minecraft/" + result);
@@ -1189,33 +1164,24 @@ public final class InventoryListeners implements Listener {
                             String signature = asJson.get("signature").getAsString();
 
                             if (texture == null || signature == null) {
-                                messages.send(opener, Messages.Message.SKIN_NOT_FOUND);
+                                messages.send(player, Messages.Message.SKIN_NOT_FOUND);
                                 return;
                             }
 
-                            tracker.addNewSkin(opener, null, "none", sex, source.isAdult(), texture, signature);
+                            tracker.addNewSkin(player, null, "none", sex, source.isAdult(), texture, signature);
                         } catch (IOException exception) {
                             if (exception instanceof FileNotFoundException) {
-                                messages.send(opener, Messages.Message.SKIN_NOT_FOUND);
+                                messages.send(player, Messages.Message.SKIN_NOT_FOUND);
                             } else {
                                 exception.printStackTrace();
                             }
                         }
                     });
 
-                    // This will take a bit of time since it's running in another thread...
-                    messages.send(opener, Messages.Message.SKIN_WAIT_WHILE_CREATING);
-                    return RealisticVillagers.CLOSE_RESPONSE;
-                })
-                .title(Config.NEW_SKIN_TITLE.asStringTranslated())
-                .text(Config.NEW_SKIN_TEXT.asStringTranslated())
-                .itemLeft(new ItemStack(Material.PAPER))
-                .plugin(plugin)
-                .onClose(snapshot -> {
-                    if (success.get()) return;
-                    runTask(() -> new NewSkinGUI(plugin, snapshot.getPlayer(), skin.getPreviousSource()));
-                })
-                .open((Player) event.getWhoClicked());
+                    messages.send(player, Messages.Message.SKIN_WAIT_WHILE_CREATING);
+                },
+                () -> runTask(() -> new NewSkinGUI(plugin, player, skin.getPreviousSource()))));
+        player.sendMessage("§e[RV] §fType a player name in chat, or type §ccancel§f to go back.");
     }
 
     private void openCombatGUI(IVillagerNPC npc, Player player, @Nullable Integer page, @Nullable String keyword, boolean isAnimal) {

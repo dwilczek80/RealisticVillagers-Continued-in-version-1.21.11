@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import me.matsubara.realisticvillagers.data.TargetReason;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
+import me.matsubara.realisticvillagers.entity.Pet;
 import me.matsubara.realisticvillagers.entity.v1_20_6.villager.VillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.nms.v1_20_6.NMSConverter;
@@ -61,6 +62,8 @@ public class VillagerPanicTrigger extends Behavior<Villager> {
             return;
         }
 
+        if (target instanceof Pet) return;
+
         if (target instanceof ServerPlayer player) {
             if (player.isCreative()) return;
             if (villager instanceof VillagerNPC npc && npc.isPartner(player.getUUID())) return;
@@ -70,7 +73,11 @@ public class VillagerPanicTrigger extends Behavior<Villager> {
         }
 
         if (villager instanceof VillagerNPC npc) npc.stopAllInteractions();
-        NMSConverter.leaveVehicle(villager);
+        boolean mountedCombat = villager instanceof VillagerNPC npc2
+                && npc2.isPassenger()
+                && villager.getVehicle() instanceof Pet
+                && npc2.canAttack();
+        if (!mountedCombat) NMSConverter.leaveVehicle(villager);
 
         // Use the same condition as canStillUse(), but the name doesn't mean anything.
         if (canStillUse(level, villager, time)) {

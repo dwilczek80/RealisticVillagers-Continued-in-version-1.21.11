@@ -51,7 +51,20 @@ public final class PlayerListeners implements Listener {
     @EventHandler
     public void onPlayerJoin(@NotNull PlayerJoinEvent event) {
         // Should add support for ItemsAdder?
-        discoverRecipes(event.getPlayer(), plugin.getRing().getKey(), plugin.getWhistle().getKey());
+        discoverRecipes(event.getPlayer(), plugin.getRing().getKey(), plugin.getWhistle().getKey(), plugin.getCross().getKey());
+
+        // When gender selection is disabled, auto-assign the configured default gender.
+        if (!Config.GENDER_SELECTION_ENABLED.asBool()) {
+            Player player = event.getPlayer();
+            String current = player.getPersistentDataContainer()
+                    .get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
+            if (current == null || current.isEmpty()) {
+                String def = Config.GENDER_SELECTION_DEFAULT.asString().toLowerCase(java.util.Locale.ROOT);
+                if (!def.equals("male") && !def.equals("female")) def = "male";
+                player.getPersistentDataContainer()
+                        .set(plugin.getPlayerSexKey(), PersistentDataType.STRING, def);
+            }
+        }
     }
 
     @EventHandler
@@ -81,6 +94,7 @@ public final class PlayerListeners implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerMoveGender(@NotNull PlayerMoveEvent event) {
+        if (!Config.GENDER_SELECTION_ENABLED.asBool()) return;
         Player player = event.getPlayer();
         String currentSex = player.getPersistentDataContainer().get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
         if (currentSex == null || currentSex.isEmpty()) {
@@ -148,13 +162,15 @@ public final class PlayerListeners implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        String currentSex = player.getPersistentDataContainer().get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
-        if (currentSex == null || currentSex.isEmpty()) {
-            event.setCancelled(true);
-            if (plugin.getCooldownManager().canInteract(player, "gender_reminder", 3000L)) {
-                plugin.getMessages().send(player, Messages.Message.PLAYER_GENDER_REMINDER);
+        if (Config.GENDER_SELECTION_ENABLED.asBool()) {
+            String currentSex = player.getPersistentDataContainer().get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
+            if (currentSex == null || currentSex.isEmpty()) {
+                event.setCancelled(true);
+                if (plugin.getCooldownManager().canInteract(player, "gender_reminder", 3000L)) {
+                    plugin.getMessages().send(player, Messages.Message.PLAYER_GENDER_REMINDER);
+                }
+                return;
             }
-            return;
         }
 
         handleWhistle(event);

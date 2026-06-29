@@ -10,6 +10,8 @@ import me.matsubara.realisticvillagers.entity.v26_1.pet.PetCat;
 import me.matsubara.realisticvillagers.entity.v26_1.pet.PetParrot;
 import me.matsubara.realisticvillagers.entity.v26_1.pet.PetWolf;
 import me.matsubara.realisticvillagers.entity.v26_1.pet.horse.HorseEating;
+import me.matsubara.realisticvillagers.entity.v26_1.pet.horse.PetCamel;
+import me.matsubara.realisticvillagers.entity.v26_1.pet.horse.PetLlama;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.ai.behaviour.*;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.ai.behaviour.GiveGiftToHero;
@@ -43,6 +45,8 @@ import me.matsubara.realisticvillagers.files.Config;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.EntityType;
@@ -88,6 +92,21 @@ public class VillagerNPCGoalPackages {
     private static final int GO_TO_WANTED_ITEM_DISTANCE = 10;
 
     private static final ImmutableSet<Item> HORSE_FOOD = ImmutableSet.of(Items.WHEAT, Items.SUGAR, Blocks.HAY_BLOCK.asItem(), Items.APPLE, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE);
+    private static final ImmutableSet<Item> CAMEL_FOOD = ImmutableSet.of(Items.CACTUS, Items.WHEAT, Items.SUGAR, Blocks.HAY_BLOCK.asItem(), Items.APPLE, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE, Items.BREAD);
+    private static final ImmutableSet<Item> LLAMA_DECOR;
+
+    static {
+        String[] colors = {"white", "orange", "magenta", "light_blue", "yellow", "lime",
+                "pink", "gray", "light_gray", "cyan", "purple", "blue",
+                "brown", "green", "red", "black"};
+        ImmutableSet.Builder<Item> builder = ImmutableSet.builder();
+        for (String color : colors) {
+            BuiltInRegistries.ITEM.getOptional(Identifier.withDefaultNamespace(color + "_carpet"))
+                    .filter(item -> item != Items.AIR)
+                    .ifPresent(builder::add);
+        }
+        LLAMA_DECOR = builder.build();
+    }
     private static final Predicate<LivingEntity> IS_DOING_NOTHING = living -> !(living instanceof VillagerNPC npc) || npc.isDoingNothing(true);
     private static final Predicate<LivingEntity> DUMMY = living -> true;
     private static final Predicate<Villager> SHOULD_HIDE = villager -> villager instanceof VillagerNPC npc && !npc.canAttack();
@@ -144,11 +163,31 @@ public class VillagerNPCGoalPackages {
                         (npc, living) -> Config.TAME_HORSES.asBool()
                                 && living instanceof Pet
                                 && living instanceof AbstractHorse horse
+                                && !(living instanceof PetCamel)
+                                && !(living instanceof PetLlama)
                                 && !horse.isVehicle()
                                 && !horse.isBaby()
                                 && !horse.isTamed()
                                 && npc.getInventory().hasAnyOf(Set.of(Items.SADDLE)),
                         HORSE_FOOD)),
+                Pair.of(10, createTameOrFeedPet(
+                        3,
+                        (npc, living) -> Config.TAME_HORSES.asBool()
+                                && living instanceof PetCamel camel
+                                && !camel.isVehicle()
+                                && !camel.isBaby()
+                                && !camel.isTamedByVillager()
+                                && npc.getInventory().hasAnyOf(Set.of(Items.SADDLE)),
+                        CAMEL_FOOD)),
+                Pair.of(10, createTameOrFeedPet(
+                        1,
+                        (npc, living) -> Config.TAME_HORSES.asBool()
+                                && living instanceof PetLlama llama
+                                && !llama.isVehicle()
+                                && !llama.isBaby()
+                                && !llama.isTamed()
+                                && npc.getInventory().hasAnyOf(LLAMA_DECOR),
+                        LLAMA_DECOR)),
                 Pair.of(10, createTameOrFeedPet(
                         3,
                         (npc, living) -> living instanceof PetCat cat && !cat.isTame(),

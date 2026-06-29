@@ -53,11 +53,11 @@ public final class GiftManager {
     public void loadGiftCategories() {
         gifts.clear();
 
-        defaultCooldownSeconds = plugin.getConfig().getInt("gifts.default-cooldown-seconds", 300);
-        maxGain = plugin.getConfig().getInt("gifts.max-gain", 15);
-        maxLoss = plugin.getConfig().getInt("gifts.max-loss", 10);
+        defaultCooldownSeconds = plugin.getGiftsConfig().getInt("default-cooldown-seconds", 300);
+        maxGain = plugin.getGiftsConfig().getInt("max-gain", 9999);
+        maxLoss = plugin.getGiftsConfig().getInt("max-loss", 9999);
 
-        ConfigurationSection items = plugin.getConfig().getConfigurationSection("gifts.items");
+        ConfigurationSection items = plugin.getGiftsConfig().getConfigurationSection("items");
         if (items == null) return;
 
         for (String key : items.getKeys(false)) {

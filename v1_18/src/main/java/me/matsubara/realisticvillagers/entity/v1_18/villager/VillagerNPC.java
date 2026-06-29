@@ -496,7 +496,8 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         sex = villagerTag.getString(OfflineVillagerNPC.SEX);
         if (sex.isEmpty()) sex = PluginUtils.getRandomSex();
         if (tracker.shouldRename(villagerName)) {
-            setVillagerName(tracker.getRandomNameBySex(sex));
+            String regionKey = getBukkitEntity().getVillagerType().name().toLowerCase(java.util.Locale.ROOT);
+            setVillagerName(tracker.getRandomNameBySex(sex, regionKey));
         }
         isPartnerVillager = villagerTag.getBoolean(OfflineVillagerNPC.IS_PARTNER_VILLAGER);
         partner = getFamily(villagerTag, OfflineVillagerNPC.PARTNER, isPartnerVillager);

@@ -158,11 +158,11 @@ public final class MainGUI extends InteractGUI {
     }
 
     private boolean getBool(String itemName, String setting) {
-        return plugin.getConfig().getBoolean("gui." + name + ".items." + itemName + "." + setting);
+        return plugin.getGuiConfig().getBoolean("gui." + name + ".items." + itemName + "." + setting);
     }
 
     private int getItemSlot(String itemName) {
-        String string = plugin.getConfig().getString("gui." + name + ".items." + itemName + ".slot");
+        String string = plugin.getGuiConfig().getString("gui." + name + ".items." + itemName + ".slot");
         if (string == null || string.isEmpty()) return -1;
 
         String[] data = string.split(",");
@@ -327,11 +327,11 @@ public final class MainGUI extends InteractGUI {
         String age = bukkit.isAdult() ? Config.ADULT.asString() : Config.KID.asString();
 
         String type = bukkit.getVillagerType().name().toLowerCase(Locale.ROOT);
-        type = plugin.getConfig().getString("variable-text.type." + type, type);
+        type = plugin.getVariableTextConfig().getString("variable-text.type." + type, type);
 
         String activity = npc.getActivityName(none);
         if (!activity.equalsIgnoreCase(none)) {
-            activity = plugin.getConfig().getString("variable-text.activity." + activity, activity);
+            activity = plugin.getVariableTextConfig().getString("variable-text.activity." + activity, activity);
         }
 
         AttributeInstance maxHealthAttribute = bukkit.getAttribute(Attribute.MAX_HEALTH);

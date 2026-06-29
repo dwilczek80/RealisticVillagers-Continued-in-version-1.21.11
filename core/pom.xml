@@ -93,6 +93,7 @@
                                 <filter>
                                     <artifact>net.wesjd:anvilgui</artifact>
                                     <excludes>
+                                        <exclude>net/wesjd/anvilgui/version/Wrapper26_R1*</exclude>
                                         <exclude>net/wesjd/anvilgui/version/Wrapper1_7*</exclude>
                                         <exclude>net/wesjd/anvilgui/version/Wrapper1_8*</exclude>
                                         <exclude>net/wesjd/anvilgui/version/Wrapper1_9*</exclude>
@@ -194,7 +195,7 @@
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
-            <version>1.10.11-SNAPSHOT</version>
+            <version>1.10.13-SNAPSHOT</version>
         </dependency>
         <!-- ConfigUpdater (local module) -->
         <dependency>

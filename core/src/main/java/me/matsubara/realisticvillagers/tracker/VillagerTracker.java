@@ -502,8 +502,30 @@ public final class VillagerTracker implements Listener {
                     profession.equals("none") ? "true" : "false"));
         }
 
+        String resolvedProfession = differentProfession != null ? differentProfession : profession;
         Set<String> originalIds = section.getKeys(false);
-        int which = getSkinId(npc, originalIds, getModifiedKeys(config, living, originalIds), random);
+        Set<String> candidateIds = getModifiedKeys(config, living, originalIds);
+
+        // Regional skin filter: if a skins/regions/<type>/male.yml (or female) exists and has
+        // a list for this profession, narrow the candidate pool to only those IDs.
+        // The regional file never adds new skins — it just restricts which global IDs are picked
+        // for this villager type, so getTextures() continues to read from the global file safely.
+        if (living instanceof Villager villager && Config.REGIONALITY_ENABLED.asBool()) {
+            String regionKey = villager.getVillagerType().name().toLowerCase(Locale.ROOT);
+            Pair<File, FileConfiguration> regionalPair = getFile(sex + "_" + regionKey + ".yml");
+            if (regionalPair != null) {
+                List<?> allowed = regionalPair.getValue().getList(resolvedProfession);
+                if (allowed != null && !allowed.isEmpty()) {
+                    Set<String> allowedIds = new LinkedHashSet<>();
+                    for (Object o : allowed) allowedIds.add(String.valueOf(o));
+                    Set<String> filtered = new LinkedHashSet<>(candidateIds);
+                    filtered.retainAll(allowedIds);
+                    if (!filtered.isEmpty()) candidateIds = filtered;
+                }
+            }
+        }
+
+        int which = getSkinId(npc, originalIds, candidateIds, random);
         return new SkinRelatedData(sex, profession, which, config, section, null);
     }
 
@@ -563,19 +585,51 @@ public final class VillagerTracker implements Listener {
     }
 
     public String getRandomNameBySex(String sex) {
-        Pair<File, FileConfiguration> pair = getFile("names.yml");
-        FileConfiguration config = pair.getValue();
+        return getRandomNameBySex(sex, null);
+    }
 
-        List<String> names = config.getStringList(sex);
+    public String getRandomNameBySex(String sex, @Nullable String regionKey) {
+        if (regionKey != null && me.matsubara.realisticvillagers.files.Config.REGIONALITY_ENABLED.asBool()) {
+            // 1. Try regional names file (e.g., names_desert.yml).
+            String name = pickNameFromFile("names_" + regionKey + ".yml", sex);
+            if (name != null) return name;
+        }
 
+        // 2. Try global default pool (configs/names/default.yml → key "names_default.yml").
+        String defaultName = pickNameFromFile("names_default.yml", sex);
+        if (defaultName != null) return defaultName;
+
+        // 3. Aggregate from ALL loaded regional name files as last resort.
+        List<String> allNames = new ArrayList<>();
+        for (Map.Entry<String, Pair<File, FileConfiguration>> entry : files.entrySet()) {
+            if (!entry.getKey().startsWith("names_") || entry.getKey().equals("names_default.yml")) continue;
+            allNames.addAll(entry.getValue().getValue().getStringList(sex));
+        }
+        if (!allNames.isEmpty()) {
+            String name = "";
+            do {
+                if (allNames.isEmpty()) break;
+                int index = random.nextInt(allNames.size());
+                name = allNames.remove(index);
+            } while (name.length() < 3);
+            if (name.length() >= 3) return name;
+        }
+
+        return HIDE_NAMETAG_NAME;
+    }
+
+    private @Nullable String pickNameFromFile(String fileKey, String sex) {
+        Pair<File, FileConfiguration> pair = getFile(fileKey);
+        if (pair == null) return null;
+        List<String> names = new ArrayList<>(pair.getValue().getStringList(sex));
+        if (names.isEmpty()) return null;
         String name = "";
         do {
             if (names.isEmpty()) break;
             int index = random.nextInt(names.size());
             name = names.remove(index);
         } while (name.length() < 3);
-
-        return name.length() >= 3 ? name : HIDE_NAMETAG_NAME;
+        return name.length() >= 3 ? name : null;
     }
 
     @Contract(pure = true)

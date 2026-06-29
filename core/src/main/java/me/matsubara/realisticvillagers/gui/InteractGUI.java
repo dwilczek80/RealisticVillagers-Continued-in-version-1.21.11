@@ -47,7 +47,7 @@ public abstract class InteractGUI implements InventoryHolder {
     }
 
     protected String getTitle() {
-        return (titleOperator != null ? titleOperator : EMPTY).apply(plugin.getConfig().getString("gui." + name + ".title"));
+        return (titleOperator != null ? titleOperator : EMPTY).apply(plugin.getGuiConfig().getString("gui." + name + ".title"));
     }
 
     protected ItemStack getGUIItem(String itemName) {
@@ -90,7 +90,7 @@ public abstract class InteractGUI implements InventoryHolder {
     }
 
     public static int getValidSize(@NotNull RealisticVillagers plugin, String sizePath, int min) {
-        int size = plugin.getConfig().getInt("gui." + sizePath + ".size");
+        int size = plugin.getGuiConfig().getInt("gui." + sizePath + ".size");
         return getValidSize(size, min);
     }
 

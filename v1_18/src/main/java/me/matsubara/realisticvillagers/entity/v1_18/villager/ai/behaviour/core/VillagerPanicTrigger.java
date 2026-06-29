@@ -3,6 +3,7 @@ package me.matsubara.realisticvillagers.entity.v1_18.villager.ai.behaviour.core;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
+import me.matsubara.realisticvillagers.entity.Pet;
 import me.matsubara.realisticvillagers.entity.v1_18.villager.VillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.nms.v1_18.NMSConverter;
@@ -57,6 +58,8 @@ public class VillagerPanicTrigger extends Behavior<Villager> {
             if (hasNearTNT(villager)) handleNormalReaction(brain);
             return;
         }
+
+        if (target instanceof Pet) return;
 
         if (target instanceof ServerPlayer player) {
             if (player.isCreative()) return;

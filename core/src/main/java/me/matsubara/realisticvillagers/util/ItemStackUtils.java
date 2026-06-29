@@ -83,8 +83,13 @@ public final class ItemStackUtils {
         return isMeleeWeapon(item) || isRangeWeapon(item);
     }
 
+    public static boolean isSpear(@NotNull ItemStack item) {
+        String name = item.getType().name();
+        return name.endsWith("_SPEAR") || name.equals("SPEAR");
+    }
+
     public static boolean isMeleeWeapon(@NotNull ItemStack item) {
-        return item.getType() == Material.TRIDENT || isSword(item) || isAxe(item);
+        return item.getType() == Material.TRIDENT || item.getType().name().equals("MACE") || isSpear(item) || isSword(item) || isAxe(item);
     }
 
     public static boolean isBetterArmorMaterial(ItemStack toCheck, ItemStack actual) {
@@ -231,6 +236,10 @@ public final class ItemStackUtils {
             return handle(living, item, content, (first, second) -> getBowBasePoints(first) > getBowBasePoints(second), addIfNotBetter);
         } else if (item.getType() == Material.TRIDENT) {
             return handle(living, item, content, (first, second) -> getTridentBasePoints(first) > getTridentBasePoints(second), addIfNotBetter);
+        } else if (item.getType().name().equals("MACE")) {
+            return handle(living, item, content, (first, second) -> getMaceBasePoints(first) > getMaceBasePoints(second), addIfNotBetter);
+        } else if (isSpear(item)) {
+            return handle(living, item, content, (first, second) -> getSpearBasePoints(first) > getSpearBasePoints(second), addIfNotBetter);
         }
         return false;
     }
@@ -308,6 +317,22 @@ public final class ItemStackUtils {
         int impalingLevel = item.getEnchantmentLevel(Enchantment.IMPALING);
         if (impalingLevel > 0) {
             points += impalingLevel * 2.5d;
+        }
+
+        return points;
+    }
+
+    private static double getSpearBasePoints(@NotNull ItemStack item) {
+        return getSharpnessPoints(item);
+    }
+
+    private static double getMaceBasePoints(@NotNull ItemStack item) {
+        double points = getSharpnessPoints(item);
+
+        // https://minecraft.wiki/w/Density - adds 1 per level to fall damage per block.
+        int densityLevel = item.getEnchantmentLevel(Enchantment.DENSITY);
+        if (densityLevel > 0) {
+            points += densityLevel;
         }
 
         return points;

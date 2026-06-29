@@ -12,8 +12,10 @@ import me.matsubara.realisticvillagers.entity.v1_21_11.WanderingTraderNPC;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.PetCat;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.PetParrot;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.PetWolf;
+import me.matsubara.realisticvillagers.entity.v1_21_11.pet.horse.PetCamel;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.horse.PetDonkey;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.horse.PetHorse;
+import me.matsubara.realisticvillagers.entity.v1_21_11.pet.horse.PetLlama;
 import me.matsubara.realisticvillagers.entity.v1_21_11.pet.horse.PetMule;
 import me.matsubara.realisticvillagers.entity.v1_21_11.villager.OfflineVillagerNPC;
 import me.matsubara.realisticvillagers.entity.v1_21_11.villager.VillagerNPC;
@@ -45,8 +47,10 @@ import net.minecraft.world.entity.ai.gossip.GossipType;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.sensing.Sensor;
 import net.minecraft.world.entity.ai.sensing.SensorType;
+import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.equine.Donkey;
 import net.minecraft.world.entity.animal.equine.Horse;
+import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.equine.Mule;
 import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.parrot.Parrot;
@@ -194,6 +198,8 @@ public class NMSConverter implements INMSConverter {
         Reflection.setFieldUsingUnsafe(field, EntityType.MULE, (EntityType.EntityFactory<Mule>) PetMule::new);
         Reflection.setFieldUsingUnsafe(field, EntityType.CAT, (EntityType.EntityFactory<Cat>) PetCat::new);
         Reflection.setFieldUsingUnsafe(field, EntityType.PARROT, (EntityType.EntityFactory<Parrot>) PetParrot::new);
+        Reflection.setFieldUsingUnsafe(field, EntityType.CAMEL, (EntityType.EntityFactory<Camel>) PetCamel::new);
+        Reflection.setFieldUsingUnsafe(field, EntityType.LLAMA, (EntityType.EntityFactory<Llama>) PetLlama::new);
         Reflection.setFieldUsingUnsafe(field, EntityType.WOLF, (EntityType.EntityFactory<Wolf>) PetWolf::new);
     }
 
@@ -509,7 +515,7 @@ public class NMSConverter implements INMSConverter {
         try {
             EnvironmentAttribute<Activity> schedule = name.equals("baby") ? VillagerNPC.VILLAGER_BABY : VillagerNPC.VILLAGER_DEFAULT;
 
-            ConfigurationSection section = plugin.getConfig().getConfigurationSection("schedules." + name);
+            ConfigurationSection section = plugin.getVariableTextConfig().getConfigurationSection("schedules." + name);
             if (section == null) return null;
 
             KeyframeTrack.Builder<Activity> trackBuilder = new KeyframeTrack.Builder<>();
@@ -518,7 +524,7 @@ public class NMSConverter implements INMSConverter {
                     .map(Integer::valueOf)
                     .sorted()
                     .toList()) {
-                Activity activity = ACTIVITIES.get(plugin.getConfig().getString("schedules." + name + "." + time, "").toLowerCase(Locale.ROOT));
+                Activity activity = ACTIVITIES.get(plugin.getVariableTextConfig().getString("schedules." + name + "." + time, "").toLowerCase(Locale.ROOT));
                 if (activity != null) trackBuilder.addKeyframe(time, activity);
             }
 

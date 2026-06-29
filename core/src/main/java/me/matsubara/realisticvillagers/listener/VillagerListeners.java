@@ -56,6 +56,7 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
     private final RealisticVillagers plugin;
 
     private static final MethodHandle MODIFIERS = Reflection.getFieldGetter(EntityDamageEvent.class, "modifiers");
+    public static final boolean HOLOGRAM_SUPPORTED = XReflection.supports(19, 4);
 
     public VillagerListeners(RealisticVillagers plugin) {
         super(PacketListenerPriority.HIGHEST);
@@ -313,8 +314,13 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
                 }
             }
 
-            // Prevent interacting with villager if it's fighting.
+            // Prevent interacting with villager if it's fighting or fleeing.
             if (npc.isFighting() || npc.isInsideRaid()) {
+                messages.send(player, Messages.Message.INTERACT_FAIL_FIGHTING_OR_RAID);
+                return;
+            }
+            String currentActivity = npc.getActivityName("").toLowerCase(java.util.Locale.ROOT);
+            if (currentActivity.equals("hide") || currentActivity.equals("panic")) {
                 messages.send(player, Messages.Message.INTERACT_FAIL_FIGHTING_OR_RAID);
                 return;
             }
@@ -333,13 +339,27 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
             if (npc.isInteracting()) {
                 if (!npc.getInteractingWith().equals(player.getUniqueId())) {
                     messages.send(player, Messages.Message.INTERACT_FAIL_INTERACTING);
+                } else if (hologramEnabled() && plugin.getHologramManager().hasMenu(player.getUniqueId())) {
+                    // Hologram check must come before isFollowing and isStayingInPlace: when ORDER:FOLLOW
+                    // is active the villager is in FOLLOW_ME mode, but the hologram owns the session —
+                    // close() handles all state cleanup. Without this ordering, right-clicking would fire
+                    // FOLLOW_ME_STOP and leave the hologram orphaned.
+                    plugin.getHologramManager().closeMenu(player.getUniqueId());
                 } else if (npc.isFollowing()) {
-                    messages.send(player, npc, Messages.Message.FOLLOW_ME_STOP);
-                    npc.stopInteracting();
+                    if (hologramEnabled()) {
+                        plugin.getHologramManager().openMenu(player, npc);
+                    } else {
+                        messages.send(player, npc, Messages.Message.FOLLOW_ME_STOP);
+                        npc.stopInteracting();
+                    }
                 } else if (npc.isStayingInPlace()) {
-                    messages.send(player, npc, Messages.Message.STAY_HERE_STOP);
-                    npc.stopInteracting();
-                    npc.stopStayingInPlace();
+                    if (hologramEnabled()) {
+                        plugin.getHologramManager().openMenu(player, npc);
+                    } else {
+                        messages.send(player, npc, Messages.Message.STAY_HERE_STOP);
+                        npc.stopInteracting();
+                        npc.stopStayingInPlace();
+                    }
                 }
                 // Otherwise, is in GUI so, do nothing.
                 return;
@@ -352,8 +372,12 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
 
             if (plugin.getAnnoyingManager().isVillagerAnnoyed(player, npc)) return;
 
-            // Open custom GUI.
-            new MainGUI(plugin, npc, player);
+            // Open hologram menu or fall back to chest GUI.
+            if (hologramEnabled()) {
+                plugin.getHologramManager().openMenu(player, npc);
+            } else {
+                new MainGUI(plugin, npc, player);
+            }
 
             // Set interacting with id.
             npc.setInteractingWithAndType(player.getUniqueId(), InteractType.GUI);
@@ -433,6 +457,10 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         npc.stopExpecting();
         plugin.getCooldownManager().removeCooldown(player, checkType.name().toLowerCase(Locale.ROOT));
         return true;
+    }
+
+    private boolean hologramEnabled() {
+        return HOLOGRAM_SUPPORTED && plugin.getHologramManager().isEnabled();
     }
 
     private boolean preventChangeSkinItemUse(@Nullable Cancellable cancellable, ItemStack item) {

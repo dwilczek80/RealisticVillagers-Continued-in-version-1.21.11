@@ -7,10 +7,12 @@ import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.entity.Pet;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import me.matsubara.realisticvillagers.nms.v26_1.NMSConverter;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityReference;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -84,5 +86,15 @@ public class PetHorse extends Horse implements Pet, HorseEating {
     @Override
     public void handleEating(ItemStack item) {
         handleEating(null, item);
+    }
+
+    @Override
+    public void customServerAiStep(ServerLevel level) {
+        super.customServerAiStep(level);
+        if (!(getFirstPassenger() instanceof VillagerNPC rider)) return;
+        rider.getBrain().getMemory(MemoryModuleType.WALK_TARGET).ifPresent(walkTarget -> {
+            var pos = walkTarget.getTarget().currentPosition();
+            getNavigation().moveTo(pos.x, pos.y, pos.z, 2.5);
+        });
     }
 }
