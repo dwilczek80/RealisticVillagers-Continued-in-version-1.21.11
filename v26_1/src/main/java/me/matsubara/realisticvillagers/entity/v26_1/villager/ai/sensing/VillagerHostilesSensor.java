@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.sensing.NearestVisibleLivingEntitySensor;
@@ -26,10 +25,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 public class VillagerHostilesSensor extends NearestVisibleLivingEntitySensor {
 
-    private static final Set<EntityType<?>> SPECIAL_ENTITIES = Sets.newHashSet(EntityTypes.CREEPER, EntityTypes.WITCH, EntityTypes.PLAYER);
+    private static final Set<EntityType<?>> SPECIAL_ENTITIES = Sets.newHashSet(ET.CREEPER, ET.WITCH, ET.PLAYER);
     private static final BiPredicate<Player, LivingEntity> IS_BEING_TARGETED = (player, entity) -> entity instanceof Monster monster
             && player.equals(monster.getTarget());
 

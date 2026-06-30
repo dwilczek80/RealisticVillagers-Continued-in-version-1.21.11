@@ -8,7 +8,6 @@ import me.matsubara.realisticvillagers.data.Exchangeable;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.Brain;
@@ -24,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 public class ShowTradesToPlayer extends Behavior<Villager> implements Exchangeable {
 
@@ -53,7 +53,7 @@ public class ShowTradesToPlayer extends Behavior<Villager> implements Exchangeab
         LivingEntity target = brain.getMemory(MemoryModuleType.INTERACTION_TARGET).get();
         if (target.getMainHandItem().isEmpty()) return false;
 
-        boolean canShow = target.getType() == EntityTypes.PLAYER
+        boolean canShow = target.getType() == ET.PLAYER
                 && villager.isAlive()
                 && target.isAlive()
                 && !villager.isBaby()

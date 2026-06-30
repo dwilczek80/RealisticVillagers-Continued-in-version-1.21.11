@@ -72,7 +72,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.EntitySpawnRequest;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.behavior.BehaviorControl;
@@ -159,6 +158,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @SuppressWarnings({"Guava", "deprecation", "resource"})
 @Getter
@@ -1690,7 +1690,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
             holder = ((Villager) breedWith).getVillagerData().type();
         }
 
-        VillagerNPC baby = new VillagerNPC(EntityTypes.VILLAGER, level, holder);
+        VillagerNPC baby = new VillagerNPC(ET.VILLAGER, level, holder);
         baby.finalizeSpawn(level, level.getCurrentDifficultyAt(baby.blockPosition()), EntitySpawnReason.BREEDING, null);
         return baby;
     }
@@ -2084,7 +2084,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 || random.nextInt(200) != 0) return;
 
         EntityType<?> type = tag.read("id", EntityType.CODEC).orElse(null);
-        if (type != EntityTypes.PARROT || Parrot.imitateNearbyMobs(level(), this)) return;
+        if (type != ET.PARROT || Parrot.imitateNearbyMobs(level(), this)) return;
 
         level().playSound(null,
                 getX(),

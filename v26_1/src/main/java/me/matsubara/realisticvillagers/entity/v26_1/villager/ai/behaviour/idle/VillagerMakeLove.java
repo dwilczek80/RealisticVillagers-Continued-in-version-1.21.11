@@ -9,7 +9,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
 import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
@@ -24,6 +23,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 public class VillagerMakeLove extends Behavior<Villager> {
@@ -110,10 +110,10 @@ public class VillagerMakeLove extends Behavior<Villager> {
     private boolean isBreedingPossible(@NotNull Villager villager) {
         Brain<Villager> brain = villager.getBrain();
         Optional<AgeableMob> optional = brain.getMemory(MemoryModuleType.BREED_TARGET)
-                .filter((breedWith) -> breedWith.getType() == EntityTypes.VILLAGER);
+                .filter((breedWith) -> breedWith.getType() == ET.VILLAGER);
 
         return optional.isPresent()
-                && BehaviorUtils.targetIsValid(brain, MemoryModuleType.BREED_TARGET, EntityTypes.VILLAGER)
+                && BehaviorUtils.targetIsValid(brain, MemoryModuleType.BREED_TARGET, ET.VILLAGER)
                 && villager.canBreed()
                 && optional.get().canBreed();
     }

@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @Getter
 @Setter

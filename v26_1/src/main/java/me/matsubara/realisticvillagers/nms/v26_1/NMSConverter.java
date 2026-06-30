@@ -40,7 +40,6 @@ import net.minecraft.world.attribute.EnvironmentAttribute;
 import net.minecraft.world.attribute.EnvironmentAttributeSystem;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -103,6 +102,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @SuppressWarnings("unchecked")
 public class NMSConverter implements INMSConverter {
@@ -169,42 +169,42 @@ public class NMSConverter implements INMSConverter {
 
         Reflection.setFieldUsingUnsafe(
                 field,
-                EntityTypes.VILLAGER,
+                ET.VILLAGER,
                 (EntityType.EntityFactory<Villager>) (type, level) -> {
                     try {
                         if (level instanceof ServerLevel serverLevel) {
                             org.bukkit.World world = serverLevel.getWorld();
                             if (world != null && plugin.isEnabledIn(world.getName())) {
-                                return new VillagerNPC(EntityTypes.VILLAGER, level);
+                                return new VillagerNPC(ET.VILLAGER, level);
                             }
                         }
                     } catch (Throwable ignored) {
                     }
-                    return new Villager(EntityTypes.VILLAGER, level);
+                    return new Villager(ET.VILLAGER, level);
                 });
         Reflection.setFieldUsingUnsafe(
                 field,
-                EntityTypes.WANDERING_TRADER,
+                ET.WANDERING_TRADER,
                 (EntityType.EntityFactory<WanderingTrader>) (type, level) -> {
                     try {
                         if (level instanceof ServerLevel serverLevel) {
                             org.bukkit.World world = serverLevel.getWorld();
                             if (world != null && plugin.isEnabledIn(world.getName())) {
-                                return new WanderingTraderNPC(EntityTypes.WANDERING_TRADER, level);
+                                return new WanderingTraderNPC(ET.WANDERING_TRADER, level);
                             }
                         }
                     } catch (Throwable ignored) {
                     }
-                    return new WanderingTrader(EntityTypes.WANDERING_TRADER, level);
+                    return new WanderingTrader(ET.WANDERING_TRADER, level);
                 });
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.DONKEY, (EntityType.EntityFactory<Donkey>) PetDonkey::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.HORSE, (EntityType.EntityFactory<Horse>) PetHorse::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.MULE, (EntityType.EntityFactory<Mule>) PetMule::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.CAT, (EntityType.EntityFactory<Cat>) PetCat::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.PARROT, (EntityType.EntityFactory<Parrot>) PetParrot::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.CAMEL, (EntityType.EntityFactory<Camel>) PetCamel::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.LLAMA, (EntityType.EntityFactory<Llama>) PetLlama::new);
-        Reflection.setFieldUsingUnsafe(field, EntityTypes.WOLF, (EntityType.EntityFactory<Wolf>) PetWolf::new);
+        Reflection.setFieldUsingUnsafe(field, ET.DONKEY, (EntityType.EntityFactory<Donkey>) PetDonkey::new);
+        Reflection.setFieldUsingUnsafe(field, ET.HORSE, (EntityType.EntityFactory<Horse>) PetHorse::new);
+        Reflection.setFieldUsingUnsafe(field, ET.MULE, (EntityType.EntityFactory<Mule>) PetMule::new);
+        Reflection.setFieldUsingUnsafe(field, ET.CAT, (EntityType.EntityFactory<Cat>) PetCat::new);
+        Reflection.setFieldUsingUnsafe(field, ET.PARROT, (EntityType.EntityFactory<Parrot>) PetParrot::new);
+        Reflection.setFieldUsingUnsafe(field, ET.CAMEL, (EntityType.EntityFactory<Camel>) PetCamel::new);
+        Reflection.setFieldUsingUnsafe(field, ET.LLAMA, (EntityType.EntityFactory<Llama>) PetLlama::new);
+        Reflection.setFieldUsingUnsafe(field, ET.WOLF, (EntityType.EntityFactory<Wolf>) PetWolf::new);
     }
 
     @SuppressWarnings("deprecation")
@@ -212,7 +212,7 @@ public class NMSConverter implements INMSConverter {
         if (tag == null || tag.isEmpty()) return null;
 
         EntityType<?> type = tag.read("id", EntityType.CODEC).orElse(null);
-        if (type != EntityTypes.PARROT) return null;
+        if (type != ET.PARROT) return null;
 
         return tag.read("Variant", Parrot.Variant.LEGACY_CODEC)
                 .map(Enum::ordinal)
@@ -255,7 +255,7 @@ public class NMSConverter implements INMSConverter {
         ServerLevel level = ((CraftWorld) location.getWorld()).getHandle();
 
         VillagerNPC baby = new VillagerNPC(
-                EntityTypes.VILLAGER,
+                ET.VILLAGER,
                 level,
                 VillagerType.byBiome(level.getBiome(((CraftBlock) location.getBlock()).getPosition())));
 
@@ -431,8 +431,8 @@ public class NMSConverter implements INMSConverter {
 
         ServerLevel level = ((CraftWorld) location.getWorld()).getHandle();
         net.minecraft.world.entity.npc.villager.AbstractVillager villager = trader ?
-                new WanderingTraderNPC(EntityTypes.WANDERING_TRADER, level) :
-                new VillagerNPC(EntityTypes.VILLAGER, level);
+                new WanderingTraderNPC(ET.WANDERING_TRADER, level) :
+                new VillagerNPC(ET.VILLAGER, level);
 
         loadDataFromTag((CraftLivingEntity) villager.getBukkitEntity(), tag);
 

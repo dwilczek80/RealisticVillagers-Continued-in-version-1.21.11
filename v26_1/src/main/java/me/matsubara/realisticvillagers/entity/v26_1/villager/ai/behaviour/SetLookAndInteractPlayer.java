@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
@@ -16,6 +15,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 public class SetLookAndInteractPlayer extends Behavior<Villager> {
 
@@ -50,6 +50,6 @@ public class SetLookAndInteractPlayer extends Behavior<Villager> {
     }
 
     private boolean isMatchingTarget(Villager villager, @NotNull LivingEntity target) {
-        return target.distanceToSqr(villager) <= interactionRangeSqr && target.getType().equals(EntityTypes.PLAYER);
+        return target.distanceToSqr(villager) <= interactionRangeSqr && target.getType().equals(ET.PLAYER);
     }
 }

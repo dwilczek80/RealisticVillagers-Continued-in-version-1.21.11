@@ -5,7 +5,6 @@ import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
 import net.minecraft.world.entity.ai.behavior.EntityTracker;
@@ -16,6 +15,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 public class SocializeAtBell extends Behavior<Villager> {
 
@@ -44,7 +44,7 @@ public class SocializeAtBell extends Behavior<Villager> {
                 && brain
                 .getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES)
                 .get()
-                .contains((nearest) -> EntityTypes.VILLAGER.equals(nearest.getType()));
+                .contains((nearest) -> ET.VILLAGER.equals(nearest.getType()));
     }
 
     @Override
@@ -52,7 +52,7 @@ public class SocializeAtBell extends Behavior<Villager> {
         Brain<Villager> brain = villager.getBrain();
 
         brain.getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES)
-                .flatMap((nearest) -> nearest.findClosest((living) -> EntityTypes.VILLAGER.equals(living.getType())
+                .flatMap((nearest) -> nearest.findClosest((living) -> ET.VILLAGER.equals(living.getType())
                         && living.distanceToSqr(villager) <= 32.0d))
                 .filter(nearest -> !(nearest instanceof VillagerNPC npc) || npc.isDoingNothing(true))
                 .ifPresent((target) -> {

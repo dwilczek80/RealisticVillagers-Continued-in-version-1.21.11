@@ -50,7 +50,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.PathfinderMob;
@@ -85,6 +84,7 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 public class VillagerNPCGoalPackages {
 
@@ -303,11 +303,11 @@ public class VillagerNPCGoalPackages {
     public static @NotNull ImmutableList<Pair<Integer, ? extends BehaviorControl<? super Villager>>> getIdlePackage() {
         return ImmutableList.of(
                 Pair.of(2, new RunOne<>(ImmutableList.of(
-                        Pair.of(createInteractWith(EntityTypes.VILLAGER), 2),
+                        Pair.of(createInteractWith(ET.VILLAGER), 2),
                         Pair.of(new InteractWithBreed(8, VillagerNPC.WALK_SPEED.get(), 2), 1),
-                        Pair.of(createInteractWith(EntityTypes.CAT), 1),
-                        Pair.of(createInteractWith(EntityTypes.PARROT), 1),
-                        Pair.of(createInteractWith(EntityTypes.WOLF), 1),
+                        Pair.of(createInteractWith(ET.CAT), 1),
+                        Pair.of(createInteractWith(ET.PARROT), 1),
+                        Pair.of(createInteractWith(ET.WOLF), 1),
                         Pair.of(VillageBoundRandomStroll.create(VillagerNPC.WALK_SPEED.get()), 1),
                         Pair.of(SetWalkTargetFromLookTarget.create(VillagerNPC.WALK_SPEED.get(), 2), 1),
                         Pair.of(new JumpOnBed(VillagerNPC.WALK_SPEED.get()), 1),
@@ -428,11 +428,11 @@ public class VillagerNPCGoalPackages {
     @Contract(" -> new")
     private static @NotNull Pair<Integer, BehaviorControl<LivingEntity>> getFullLookBehavior() {
         return Pair.of(5, new RunOne<>(ImmutableList.of(
-                Pair.of(new SetEntityLookTarget(EntityTypes.CAT, 8.0f), 8),
-                Pair.of(new SetEntityLookTarget(EntityTypes.PARROT, 8.0f), 8),
-                Pair.of(new SetEntityLookTarget(EntityTypes.WOLF, 8.0f), 8),
-                Pair.of(new SetEntityLookTarget(EntityTypes.VILLAGER, 8.0f), 2),
-                Pair.of(new SetEntityLookTarget(EntityTypes.PLAYER, 8.0f), 2),
+                Pair.of(new SetEntityLookTarget(ET.CAT, 8.0f), 8),
+                Pair.of(new SetEntityLookTarget(ET.PARROT, 8.0f), 8),
+                Pair.of(new SetEntityLookTarget(ET.WOLF, 8.0f), 8),
+                Pair.of(new SetEntityLookTarget(ET.VILLAGER, 8.0f), 2),
+                Pair.of(new SetEntityLookTarget(ET.PLAYER, 8.0f), 2),
                 Pair.of(new SetEntityLookTarget(MobCategory.CREATURE, 8.0f), 1),
                 Pair.of(new SetEntityLookTarget(MobCategory.WATER_CREATURE, 8.0f), 1),
                 Pair.of(new SetEntityLookTarget(MobCategory.AXOLOTLS, 8.0f), 1),
@@ -445,8 +445,8 @@ public class VillagerNPCGoalPackages {
     @Contract(" -> new")
     private static @NotNull Pair<Integer, BehaviorControl<LivingEntity>> getMinimalLookBehavior() {
         return Pair.of(5, new RunOne<>(ImmutableList.of(
-                Pair.of(new SetEntityLookTarget(EntityTypes.VILLAGER, 8.0f), 2),
-                Pair.of(new SetEntityLookTarget(EntityTypes.PLAYER, 8.0f), 2),
+                Pair.of(new SetEntityLookTarget(ET.VILLAGER, 8.0f), 2),
+                Pair.of(new SetEntityLookTarget(ET.PLAYER, 8.0f), 2),
                 Pair.of(new DoNothing(30, 60), 8))));
     }
 

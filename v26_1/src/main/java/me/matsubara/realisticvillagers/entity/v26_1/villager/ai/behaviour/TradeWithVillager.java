@@ -6,7 +6,6 @@ import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.Behavior;
@@ -25,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 public class TradeWithVillager extends Behavior<Villager> {
@@ -44,7 +44,7 @@ public class TradeWithVillager extends Behavior<Villager> {
 
         Brain<Villager> brain = villager.getBrain();
         return brain.getMemory(MemoryModuleType.INTERACTION_TARGET)
-                .filter(living -> living.getType() == EntityTypes.VILLAGER
+                .filter(living -> living.getType() == ET.VILLAGER
                         && isEntityVisible(brain, living)
                         && (!(living instanceof VillagerNPC npc) || npc.isDoingNothing(true)))
                 .isPresent();

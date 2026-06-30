@@ -18,7 +18,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.FishingHook;
@@ -46,6 +45,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;
+import me.matsubara.realisticvillagers.nms.v26_1.ET;
 
 @SuppressWarnings("WhileLoopReplaceableByForEach")
 public class DummyFishingHook extends FishingHook {
@@ -73,7 +73,7 @@ public class DummyFishingHook extends FishingHook {
     }
 
     public DummyFishingHook(VillagerNPC npc, Level level, int luck, int lureSpeed) {
-        super(EntityTypes.FISHING_BOBBER, level);
+        super(ET.FISHING_BOBBER, level);
         this.luck = luck;
         this.lureSpeed = lureSpeed;
         this.syncronizedRandom = RandomSource.create();
