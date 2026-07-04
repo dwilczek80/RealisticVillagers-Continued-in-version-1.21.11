@@ -527,3 +527,54 @@ gui:
         display-name: "&cBack"
         lore:
           - "&7Click to go to the previous menu."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # CUSTOM CHEST GUIs — fully your own, defined entirely in config.
+  #
+  # Each entry under "custom:" is a whole new chest GUI. It's always opened
+  # for a specific villager+player pair (usually via a hologram menu item
+  # whose id matches the GUI's name — see holograms.yml, "HOW TO ADD A
+  # CUSTOM CLICKABLE SUB-MENU"), so %villager-name% and %reputation% work
+  # in the title and in any action below.
+  #
+  # Slots are plain numbers here (not "x, y" like @main), starting at 0,
+  # top-left. Size must be a multiple of 9, 9-54.
+  #
+  # Each item can have an "actions:" list, run top-to-bottom on click:
+  #   - close                        Closes the GUI.
+  #   - give-item: "material:amount" Gives the player an item (amount optional, default 1).
+  #   - message: "&atext"            Sends the player a chat message.
+  #   - run-command: "cmd %player%"  Runs a command AS CONSOLE (works regardless of player perms).
+  #   - run-command-as-player: "cmd" Runs a command AS the clicking player (needs their permission).
+  #   - open-menu: "other-gui-name"  Closes this GUI and opens another "gui.custom.<name>".
+  #   - open-anvil:                  Opens an anvil text-input prompt; the submitted text becomes
+  #       title: "Type something..."   %input% for its own nested "actions:" list below.
+  #       text: "..."
+  #       actions:
+  #         - message: "&7You typed: %input%"
+  #
+  # Placeholders available everywhere above: %player%, %villager-name%, %reputation%, and
+  # (inside an open-anvil's own actions only) %input%.
+  #
+  # Example — a 3-row shop opened from a "shop" hologram/main-menu button:
+  #
+  #   custom:
+  #     shop:
+  #       size: 27
+  #       title: "&8Shop (%villager-name%)"
+  #       items:
+  #         10:
+  #           material: EMERALD
+  #           display-name: "&aBuy a potion"
+  #           lore:
+  #             - "&7Costs 10 coins."
+  #           actions:
+  #             - run-command: "eco take %player% 10"
+  #             - give-item: "potion:1"
+  #             - message: "&aThanks for your purchase!"
+  #         16:
+  #           material: BARRIER
+  #           display-name: "&cClose"
+  #           actions:
+  #             - close
+  # ─────────────────────────────────────────────────────────────────────────

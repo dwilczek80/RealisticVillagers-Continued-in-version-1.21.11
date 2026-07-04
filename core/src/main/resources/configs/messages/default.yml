@@ -11,6 +11,31 @@
 # ║   %random-villager-name% - a random nearby villager name                 ║
 # ║   %random-player-name%  - a random nearby player name                    ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
+#
+# ── ADDING A BRAND-NEW CUSTOM CHAT/CONVERSATION TYPE ────────────────────────
+#   You're not limited to chat/greet/story/joke/insult/flirt/proud-of. Add a
+#   new top-level key here (e.g. "gossip") with the same adult/child/
+#   child-offspring/partner → success/fail shape used below by "chat:", then
+#   add a hologram menu item whose id is that SAME name (see holograms.yml,
+#   "HOW TO ADD A CUSTOM CLICKABLE SUB-MENU") — it'll automatically use a
+#   global success chance, cooldown and reputation gain/loss just like a
+#   built-in chat type, no Java/plugin update needed.
+#
+#   gossip:
+#     adult:
+#       success:
+#         - "Did you hear the blacksmith fought with his wife again?"
+#       fail:
+#         - "I don't have time for gossip."
+#
+#   Optional: override how much reputation this type gives/takes (otherwise
+#   it uses the global "chat-interact-reputation" config value for both).
+#   This also works on the built-in types below (chat, greet, story, ...).
+#
+#     reputation:
+#       success: 2
+#       fail: -1
+# ─────────────────────────────────────────────────────────────────────────
 
 annoyed:
   - "Ugh… you again…?"

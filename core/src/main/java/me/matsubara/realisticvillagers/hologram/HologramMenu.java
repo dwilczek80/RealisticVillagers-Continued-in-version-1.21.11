@@ -23,13 +23,16 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public final class HologramMenu {
@@ -38,6 +41,16 @@ public final class HologramMenu {
     private final Player player;
     private final IVillagerNPC npc;
     private MenuState state = MenuState.MAIN;
+
+    // Top-level menu keys with dedicated states — never treated as a navigable custom sub-menu.
+    private static final Set<String> RESERVED_MENU_IDS = Set.of("main", "talk", "interactions");
+    // Name of the active config-defined sub-menu (only meaningful while state == CUSTOM).
+    private @Nullable String customMenuName = null;
+    // Current page index for a *paged* custom sub-menu (only meaningful while state == CUSTOM).
+    private int customPage = 0;
+    // Lets BACK return to whichever menu was open before navigating deeper, however deep that is.
+    private final Deque<NavTarget> navHistory = new ArrayDeque<>();
+    private record NavTarget(MenuState state, @Nullable String customMenuName, int customPage) {}
 
     private final List<TextDisplay> menuDisplays      = new ArrayList<>();
     private final List<Double>      menuHalfWidths    = new ArrayList<>();
@@ -689,6 +702,7 @@ public final class HologramMenu {
             case MAIN         -> buildMainMenuLines();
             case TALK         -> buildTalkMenuLines();
             case INTERACTIONS -> buildInteractionsMenuLines();
+            case CUSTOM       -> customMenuName != null ? buildCustomMenuLines(customMenuName) : List.of();
         };
     }
 
@@ -826,14 +840,136 @@ public final class HologramMenu {
         return new MenuLine("§7» §7" + lineLabel + lockedSuffix, null);
     }
 
-    /** Adds a non-clickable display line for any item whose {@code id} is not a recognised action.
-     *  Server owners use this to insert separators, headers, or decorative lines between menu items.
+    /** True if "hologram.menus.<id>" defines a navigable sub-menu: either a flat list of
+     *  items, or a paged menu (a section with a "pages" list under it). */
+    private boolean isNavigableCustomMenu(String id) {
+        String base = "hologram.menus." + id;
+        FileConfiguration c = hcfg();
+        return c.isList(base) || c.isList(base + ".pages");
+    }
+
+    /** True if "gui.custom.<id>" defines a config-driven chest GUI (see gui.yml). */
+    private boolean isCustomGui(String id) {
+        return plugin.getGuiConfig().isConfigurationSection("gui.custom." + id);
+    }
+
+    /** Evaluates an item's optional "requires:" block. With no block, everything passes.
+     *  Supports "permission: <node>" and "min-reputation: <n>"; both are checked when present. */
+    private boolean meetsRequirement(@NotNull Map<String, Object> item) {
+        if (!(item.get("requires") instanceof Map<?, ?> requires)) return true;
+
+        Object permission = requires.get("permission");
+        if (permission != null && !player.hasPermission(String.valueOf(permission))) return false;
+
+        Object minRep = requires.get("min-reputation");
+        return !(minRep instanceof Number number) || npc.getReputation(player.getUniqueId()) >= number.intValue();
+    }
+
+    /** Adds a display line for any item whose {@code id} is not a recognised action.
+     *  If the item has a "requires:" block the player doesn't satisfy, it's shown locked
+     *  (greyed out with a padlock suffix) or hidden entirely, per "locked-display: suffix|hide"
+     *  (default suffix). Otherwise, if the id matches another top-level "hologram.menus.<id>"
+     *  entry the line opens it as a sub-menu (see {@link #isNavigableCustomMenu}); if it matches
+     *  a "gui.custom.<id>" section in gui.yml it opens that chest GUI; if it matches a top-level
+     *  key in messages/default.yml it starts that custom chat/conversation. Anything else is a
+     *  plain non-clickable line — useful for separators, headers, or decorative text.
      *  The item must have a non-empty {@code text:} key; items without one are silently skipped. */
+    @SuppressWarnings("deprecation")
     private void addCustomLine(List<MenuLine> lines, Map<String, Object> item) {
         Object v = item.get("text");
         if (v == null) return;
         String text = colorStr(String.valueOf(v), "");
-        if (!text.isEmpty()) lines.add(new MenuLine(text, null));
+        if (text.isEmpty()) return;
+
+        if (!meetsRequirement(item)) {
+            if (String.valueOf(item.getOrDefault("locked-display", "suffix")).equalsIgnoreCase("hide")) return;
+            String lockedSuffix = colorStr(String.valueOf(item.getOrDefault("locked-suffix", " &7🔒")), " &7🔒");
+            lines.add(new MenuLine("§7" + ChatColor.stripColor(text) + lockedSuffix, null));
+            return;
+        }
+
+        String id = String.valueOf(item.getOrDefault("id", ""));
+        if (!id.isEmpty() && !RESERVED_MENU_IDS.contains(id)) {
+            if (isNavigableCustomMenu(id)) {
+                lines.add(new MenuLine(text, MenuAction.CUSTOM_MENU, id));
+                return;
+            }
+            if (isCustomGui(id)) {
+                lines.add(new MenuLine(text, MenuAction.CUSTOM_GUI, id));
+                return;
+            }
+            if (plugin.getMessages().isCustomChatType(id)) {
+                lines.add(new MenuLine(text, MenuAction.CUSTOM_CHAT, id));
+                return;
+            }
+        }
+        lines.add(new MenuLine(text, null));
+    }
+
+    /** Builds the line list for a config-defined custom sub-menu, either flat or paged. */
+    private List<MenuLine> buildCustomMenuLines(String menuName) {
+        String base = "hologram.menus." + menuName;
+        if (hcfg().isList(base + ".pages")) return buildPagedCustomMenuLines(menuName);
+
+        List<MenuLine> lines = new ArrayList<>();
+        for (Map<String, Object> item : menuItems(base)) {
+            String id = String.valueOf(item.getOrDefault("id", ""));
+            if (id.equals("back")) {
+                lines.add(new MenuLine(itemText(item, "text", "&c« &fBack"), MenuAction.BACK));
+            } else {
+                addCustomLine(lines, item);
+            }
+        }
+        return lines;
+    }
+
+    /** Builds the line list for one page of a paged custom sub-menu (see holograms.yml for the format). */
+    @SuppressWarnings("unchecked")
+    private List<MenuLine> buildPagedCustomMenuLines(String menuName) {
+        String base = "hologram.menus." + menuName;
+        FileConfiguration c = hcfg();
+
+        List<?> rawPages = c.getList(base + ".pages", Collections.emptyList());
+        if (rawPages.isEmpty()) return List.of();
+        customPage = Math.max(0, Math.min(customPage, rawPages.size() - 1));
+
+        Object rawPage = rawPages.get(customPage);
+        Map<String, Object> page = rawPage instanceof Map ? (Map<String, Object>) rawPage : Collections.emptyMap();
+
+        List<MenuLine> lines = new ArrayList<>();
+        String header = itemText(page, "header", "");
+        if (!header.isEmpty()) lines.add(new MenuLine(header, null));
+
+        if (page.get("items") instanceof List<?> rawItems) {
+            for (Object o : rawItems) {
+                if (!(o instanceof Map)) continue;
+                Map<String, Object> item = (Map<String, Object>) o;
+                String id = String.valueOf(item.getOrDefault("id", ""));
+                if (id.equals("back")) {
+                    lines.add(new MenuLine(itemText(item, "text", "&c« &fBack"), MenuAction.BACK));
+                } else {
+                    addCustomLine(lines, item);
+                }
+            }
+        }
+
+        if (rawPages.size() > 1) {
+            String pageText = colorStr(c.getString(base + ".page-format"), "&8[&7%current%&8/&7%total%&8]")
+                    .replace("%current%", String.valueOf(customPage + 1))
+                    .replace("%total%",   String.valueOf(rawPages.size()));
+            lines.add(new MenuLine(pageText, null));
+            lines.add(new MenuLine(colorStr(c.getString(base + ".navigation.prev"), "&e« &fPrev"), MenuAction.CUSTOM_PAGE_PREV));
+            lines.add(new MenuLine(colorStr(c.getString(base + ".navigation.next"), "&e» &fNext"), MenuAction.CUSTOM_PAGE_NEXT));
+        }
+        return lines;
+    }
+
+    /** Returns the custom sub-menu target of the currently hovered menu line, or null. */
+    private @Nullable String hoveredCustomTarget() {
+        if (hoveredDisplayIdx == null) return null;
+        List<MenuLine> lines = currentLines();
+        if (hoveredDisplayIdx >= lines.size()) return null;
+        return lines.get(hoveredDisplayIdx).customTarget();
     }
 
     /** Reads actual NPC state. Must be called BEFORE stayInPlace() is applied. */
@@ -859,9 +995,26 @@ public final class HologramMenu {
         if (closed) return;
 
         switch (action) {
-            case TALK        -> showState(MenuState.TALK);
-            case INTERACTIONS-> showState(MenuState.INTERACTIONS);
-            case BACK        -> showState(MenuState.MAIN);
+            case TALK        -> { pushHistory(); showState(MenuState.TALK); }
+            case INTERACTIONS-> { pushHistory(); showState(MenuState.INTERACTIONS); }
+            case CUSTOM_MENU -> {
+                String target = hoveredCustomTarget();
+                if (target != null) { pushHistory(); customPage = 0; showState(MenuState.CUSTOM, target); }
+            }
+            case CUSTOM_PAGE_PREV -> { customPage = Math.max(0, customPage - 1); showState(MenuState.CUSTOM, customMenuName); }
+            case CUSTOM_PAGE_NEXT -> { customPage++; showState(MenuState.CUSTOM, customMenuName); }
+            case CUSTOM_CHAT -> {
+                String type = hoveredCustomTarget();
+                if (type != null) dispatchCustomChat(type);
+            }
+            case CUSTOM_GUI -> {
+                String guiName = hoveredCustomTarget();
+                if (guiName != null) {
+                    close(true);
+                    plugin.getInventoryListeners().handleOpenCustomGUI(npc, player, guiName);
+                }
+            }
+            case BACK        -> popState();
 
             case ORDER -> cycleOrder();
 
@@ -978,14 +1131,44 @@ public final class HologramMenu {
         close(false);
     }
 
+    /** Same as {@link #dispatchChat}, but for a config-only custom chat/conversation type. */
+    private void dispatchCustomChat(@NotNull String type) {
+        if (!(npc.bukkit() instanceof Villager villager)) return;
+        Messages messages = plugin.getMessages();
+        if (plugin.getCooldownManager().canInteract(player, villager, type)) {
+            plugin.getInventoryListeners().handleCustomChatInteraction(npc, type, player);
+        } else {
+            messages.send(player, Messages.Message.INTERACT_FAIL_IN_COOLDOWN);
+        }
+        close(false);
+    }
+
     private void showState(MenuState newState) {
+        showState(newState, null);
+    }
+
+    private void showState(MenuState newState, @Nullable String customName) {
         if (newState != MenuState.INTERACTIONS) awaitingDivorceConfirm = false;
         this.state = newState;
-        spawnMenuLines(switch (newState) {
-            case MAIN         -> buildMainMenuLines();
-            case TALK         -> buildTalkMenuLines();
-            case INTERACTIONS -> buildInteractionsMenuLines();
-        });
+        this.customMenuName = newState == MenuState.CUSTOM ? customName : null;
+        spawnMenuLines(currentLines());
+    }
+
+    /** Remembers the current menu so BACK can return to it, however deep the navigation goes. */
+    private void pushHistory() {
+        navHistory.addLast(new NavTarget(state, customMenuName, customPage));
+    }
+
+    /** Returns to the previous menu in the navigation history, or MAIN if there isn't one. */
+    private void popState() {
+        NavTarget target = navHistory.pollLast();
+        if (target == null) {
+            customPage = 0;
+            showState(MenuState.MAIN);
+        } else {
+            customPage = target.customPage();
+            showState(target.state(), target.customMenuName());
+        }
     }
 
     private void closeInfoPanel() {
@@ -1065,5 +1248,9 @@ public final class HologramMenu {
     public IVillagerNPC getNPC() { return npc; }
     public Player getPlayer()    { return player; }
 
-    private record MenuLine(String text, @Nullable MenuAction action) {}
+    private record MenuLine(String text, @Nullable MenuAction action, @Nullable String customTarget) {
+        private MenuLine(String text, @Nullable MenuAction action) {
+            this(text, action, null);
+        }
+    }
 }

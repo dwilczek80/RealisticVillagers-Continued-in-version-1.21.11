@@ -161,9 +161,10 @@ hologram:
   #     to its Java action.  Changing it makes the line non-functional.
   #
   #   HOW TO ADD CUSTOM DISPLAY LINES  (separators, headers, labels)
-  #     Use any id that is NOT in the "valid ids" list below and add a
-  #     text:  value.  The line will appear exactly where you put it in
-  #     the list but will NOT be clickable.  Examples:
+  #     Use any id that is NOT in the "valid ids" list below (and does NOT
+  #     match another menu name — see below) and add a  text:  value.  The
+  #     line will appear exactly where you put it in the list but will NOT
+  #     be clickable.  Examples:
   #
   #       - {id: sep1,   text: "&8─────────────────"}
   #       - {id: header, text: "&7&lACTIONS"}
@@ -171,6 +172,77 @@ hologram:
   #
   #     You can add as many custom lines as you like, anywhere in the
   #     list, between real items or at the top/bottom.
+  #
+  #   HOW TO ADD A CUSTOM CLICKABLE SUB-MENU
+  #     Add a new top-level list under  menus:  (a sibling of main/talk/
+  #     interactions) with whatever name you like, then add an item with
+  #     that SAME name as its  id:  anywhere in an existing menu. That item
+  #     becomes clickable and opens your new list as a sub-menu. Add an
+  #     {id: back, text: "..."} item inside it to return to the menu that
+  #     opened it. Example — adds a "Rules" button to the main menu:
+  #
+  #     menus:
+  #       main:
+  #         - {id: rules, text: "&e» &fRules"}
+  #         ...
+  #       rules:
+  #         - {id: sep1, text: "&71. Be nice"}
+  #         - {id: sep2, text: "&72. No griefing"}
+  #         - {id: back, text: "&c« &fBack"}
+  #
+  #   HOW TO ADD PAGES TO A CUSTOM SUB-MENU
+  #     Instead of a flat list, give the menu a "pages:" list. Each page has
+  #     its own optional  header:  and its own  items:  list. Prev/Next
+  #     buttons and a page counter are added automatically whenever there's
+  #     more than one page — no need to add them yourself.
+  #
+  #     menus:
+  #       rules:
+  #         page-format: "&8[&7%current%&8/&7%total%&8]"   # optional, this is the default
+  #         navigation:
+  #           prev: "&e« &fPrev"                             # optional, this is the default
+  #           next: "&e» &fNext"                              # optional, this is the default
+  #         pages:
+  #           - header: "&7&l— Page 1 —"
+  #             items:
+  #               - {id: sep1, text: "&71. Be nice"}
+  #           - header: "&7&l— Page 2 —"
+  #             items:
+  #               - {id: sep2, text: "&72. No griefing"}
+  #               - {id: back, text: "&c« &fBack"}
+  #
+  #   HOW TO START A CUSTOM CHAT/CONVERSATION
+  #     Give an item an id that matches a top-level key in
+  #     configs/messages/default.yml (see that file for the format) instead
+  #     of a menu name, and it starts that conversation — random success
+  #     chance, cooldown and reputation gain/loss, same as the built-in
+  #     Talk options (Chat/Greet/Story/...), but entirely config-defined:
+  #
+  #       - {id: gossip, text: "&e» &dGossip"}
+  #
+  #   HOW TO OPEN A CUSTOM CHEST GUI
+  #     Give an item an id that matches a "gui.custom.<id>" section in
+  #     gui.yml (see that file, "CUSTOM CHEST GUIs") instead of a menu name,
+  #     and it opens that GUI — your own layout, items and click actions
+  #     (give items, run commands, send messages, open other GUIs, or a
+  #     text-input anvil prompt), entirely config-defined:
+  #
+  #       - {id: shop, text: "&e» &6Shop"}
+  #
+  #   HOW TO LOCK AN ITEM BEHIND A REQUIREMENT
+  #     Add a  requires:  block to ANY custom item (a sub-menu button, a
+  #     custom chat, or a plain line) — every check you include must pass.
+  #     By default a failed check greys the line out with a padlock suffix
+  #     (still visible, not clickable); set  locked-display: hide  to make
+  #     it disappear from the hologram entirely instead.
+  #
+  #       - id: gossip
+  #         text: "&e» &dGossip"
+  #         requires:
+  #           permission: "realisticvillagers.gossip"   # optional
+  #           min-reputation: 10                          # optional
+  #         locked-display: suffix   # or: hide  (default: suffix)
+  #         locked-suffix: " &7🔒"    # optional, this is the default
   #
   #   HOVER HIGHLIGHT
   #     When a player aims at a line the plugin highlights it.

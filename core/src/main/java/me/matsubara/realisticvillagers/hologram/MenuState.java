@@ -1,5 +1,5 @@
 package me.matsubara.realisticvillagers.hologram;
 
 public enum MenuState {
-    MAIN, TALK, INTERACTIONS
+    MAIN, TALK, INTERACTIONS, CUSTOM
 }

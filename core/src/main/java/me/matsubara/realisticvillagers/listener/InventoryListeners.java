@@ -254,6 +254,12 @@ public final class InventoryListeners implements Listener {
             return;
         }
 
+        if (interact instanceof CustomGUI customGui) {
+            event.setCancelled(true);
+            handleCustomGUIClick(customGui, npc, player, event.getSlot());
+            return;
+        }
+
         event.setCancelled(true);
 
         if (current == null) return;
@@ -741,6 +747,99 @@ public final class InventoryListeners implements Listener {
         return true;
     }
 
+    public void handleOpenCustomGUI(@NotNull IVillagerNPC npc, @NotNull Player player, @NotNull String guiName) {
+        runTask(() -> new CustomGUI(plugin, npc, player, guiName));
+    }
+
+    private void handleCustomGUIClick(@NotNull CustomGUI gui, @NotNull IVillagerNPC npc, @NotNull Player player, int slot) {
+        List<?> actions = plugin.getGuiConfig().getList("gui.custom." + gui.getGuiName() + ".items." + slot + ".actions");
+        if (actions != null) runCustomGuiActions(actions, npc, player, null);
+    }
+
+    /** Executes a custom GUI item's (or anvil submit's) "actions:" list. Each entry is either a
+     *  bare string (currently only "close") or a single-key map — give-item, message, run-command
+     *  (console), run-command-as-player, open-menu (another gui.custom.<name>), or open-anvil. */
+    @SuppressWarnings("unchecked")
+    private void runCustomGuiActions(@NotNull List<?> actions, @NotNull IVillagerNPC npc, @NotNull Player player, @Nullable String input) {
+        for (Object raw : actions) {
+            if (raw instanceof String string) {
+                if (string.equalsIgnoreCase("close")) closeInventory(player);
+                continue;
+            }
+
+            if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) continue;
+            Map.Entry<?, ?> entry = map.entrySet().iterator().next();
+            String key = String.valueOf(entry.getKey());
+            Object value = entry.getValue();
+
+            switch (key) {
+                case "give-item" -> giveCustomGuiItem(player, applyPlaceholders(String.valueOf(value), npc, player, input));
+                case "message" -> player.sendMessage(PluginUtils.translate(applyPlaceholders(String.valueOf(value), npc, player, input)));
+                case "run-command" -> plugin.getServer().dispatchCommand(
+                        plugin.getServer().getConsoleSender(), applyPlaceholders(String.valueOf(value), npc, player, input));
+                case "run-command-as-player" -> plugin.getServer().dispatchCommand(
+                        player, applyPlaceholders(String.valueOf(value), npc, player, input));
+                case "open-menu" -> {
+                    String target = applyPlaceholders(String.valueOf(value), npc, player, input);
+                    closeInventory(player);
+                    runTask(() -> new CustomGUI(plugin, npc, player, target));
+                }
+                case "open-anvil" -> {
+                    if (value instanceof Map) openCustomGuiAnvil(npc, player, (Map<String, Object>) value);
+                }
+                default -> {
+                }
+            }
+        }
+    }
+
+    private void giveCustomGuiItem(@NotNull Player player, @NotNull String raw) {
+        String[] parts = raw.split(":", 2);
+        Material material = PluginUtils.getOrNull(Material.class, parts[0].trim().toUpperCase(Locale.ROOT));
+        if (material == null) return;
+
+        int amount = 1;
+        if (parts.length > 1) {
+            try {
+                amount = Math.max(1, Integer.parseInt(parts[1].trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        player.getInventory().addItem(new ItemStack(material, amount));
+    }
+
+    /** Opens an anvil text-input prompt from an "open-anvil:" action; the submitted text becomes
+     *  %input% for the nested "actions:" list (see gui.yml for the format). */
+    @SuppressWarnings("unchecked")
+    private void openCustomGuiAnvil(@NotNull IVillagerNPC npc, @NotNull Player player, @NotNull Map<String, Object> config) {
+        String title = applyPlaceholders(String.valueOf(config.getOrDefault("title", "")), npc, player, null);
+        String text = applyPlaceholders(String.valueOf(config.getOrDefault("text", "")), npc, player, null);
+        List<?> onSubmit = config.get("actions") instanceof List<?> list ? list : Collections.emptyList();
+
+        closeInventory(player);
+        runTask(() -> new AnvilGUI.Builder()
+                .plugin(plugin)
+                .title(PluginUtils.translate(title))
+                .text(text)
+                .onClick((slot, state) -> {
+                    if (slot != AnvilGUI.Slot.OUTPUT) {
+                        return Collections.singletonList(AnvilGUI.ResponseAction.replaceInputText(state.getText()));
+                    }
+                    runCustomGuiActions(onSubmit, npc, player, state.getText());
+                    return RealisticVillagers.CLOSE_RESPONSE;
+                })
+                .open(player));
+    }
+
+    private String applyPlaceholders(@NotNull String text, @NotNull IVillagerNPC npc, @NotNull Player player, @Nullable String input) {
+        String replaced = text
+                .replace("%player%", player.getName())
+                .replace("%villager-name%", npc.getVillagerName())
+                .replace("%reputation%", String.valueOf(npc.getReputation(player.getUniqueId())));
+        return input != null ? replaced.replace("%input%", input) : replaced;
+    }
+
     private boolean handleVTL(Player player, Villager villager) {
         Plugin vtl = plugin.getServer().getPluginManager().getPlugin("VillagerTradeLimiter");
         if (vtl == null) return false;
@@ -844,13 +943,11 @@ public final class InventoryListeners implements Listener {
         VillagerChatInteractionEvent chatEvent = new VillagerChatInteractionEvent(npc, player, interactType, success);
         plugin.getServer().getPluginManager().callEvent(chatEvent);
 
-        int amount = Config.CHAT_INTERACT_REPUTATION.asInt();
-        if (amount > 1) {
-            if (chatEvent.isSuccess()) {
-                npc.addMinorPositive(player, amount);
-            } else {
-                npc.addMinorNegative(player, amount);
-            }
+        int delta = plugin.getMessages().getInteractionReputation(interactType.getName(), chatEvent.isSuccess());
+        if (delta > 0) {
+            npc.addMinorPositive(player, delta);
+        } else if (delta < 0) {
+            npc.addMinorNegative(player, -delta);
         }
 
         // Stop being annoyed after a success chat interaction.
@@ -862,6 +959,32 @@ public final class InventoryListeners implements Listener {
         npc.bukkit().playEffect(effect);
 
         String rawMsg = plugin.getMessages().sendRandomInteractionMessage(player, npc, interactType, chatEvent.isSuccess());
+        if (!rawMsg.isEmpty()) {
+            plugin.getHologramManager().showSpeech(npc.bukkit(), rawMsg);
+        }
+    }
+
+    /** Same idea as {@link #handleChatInteraction}, but for a chat type that only exists in
+     *  config (a hologram custom menu item whose id matches a top-level key in default.yml).
+     *  Always behaves like CHAT: a global success chance, and a "<type>.<target>.[success|fail]"
+     *  message path — no per-type behaviour flags (that's what the built-in enum types are for). */
+    public void handleCustomChatInteraction(IVillagerNPC npc, @NotNull String type, @NotNull Player player) {
+        boolean success = ThreadLocalRandom.current().nextFloat() < Config.CHANCE_OF_CHAT_INTERACTION_SUCCESS.asFloat();
+
+        int delta = plugin.getMessages().getInteractionReputation(type, success);
+        if (delta > 0) {
+            npc.addMinorPositive(player, delta);
+        } else if (delta < 0) {
+            npc.addMinorNegative(player, -delta);
+        }
+
+        if (success && Config.ANNOYING_METER_CLEAR_AFTER_SUCCESS_INTERACTION.asBool()) {
+            plugin.getAnnoyingManager().stopBeingAnnoyed(player, npc);
+        }
+
+        npc.bukkit().playEffect(success ? EntityEffect.VILLAGER_HAPPY : EntityEffect.VILLAGER_ANGRY);
+
+        String rawMsg = plugin.getMessages().sendRandomCustomChatMessage(player, npc, type, success);
         if (!rawMsg.isEmpty()) {
             plugin.getHologramManager().showSpeech(npc.bukkit(), rawMsg);
         }

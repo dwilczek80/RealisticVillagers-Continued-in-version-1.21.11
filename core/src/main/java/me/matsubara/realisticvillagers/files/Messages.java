@@ -94,6 +94,38 @@ public final class Messages {
         return rawMessage;
     }
 
+    /** True if {@code type} is a server-defined custom chat/conversation (a top-level key in
+     *  default.yml or a regional dialogue file, e.g. added by a hologram custom menu item). */
+    public boolean isCustomChatType(@NotNull String type) {
+        if (defaultDialogueConfig != null && defaultDialogueConfig.contains(type)) return true;
+        for (FileConfiguration regional : regionalConfigs.values()) {
+            if (regional.contains(type)) return true;
+        }
+        return false;
+    }
+
+    /** Behaves like {@link #sendRandomInteractionMessage} but for a custom, config-only chat
+     *  type: always uses the "<type>.<target>.[success|fail]" path (like CHAT/STORY/JOKE do). */
+    public String sendRandomCustomChatMessage(Player player, IVillagerNPC npc, @NotNull String type, boolean success) {
+        InteractionTargetType target = InteractionTargetType.getInteractionTarget(npc, player);
+        String path = type + "." + target.getName() + "." + (success ? "success" : "fail");
+
+        String rawMessage = getRandomMessage(path, getRegionKey(npc));
+        send(player, npc, rawMessage);
+        return rawMessage;
+    }
+
+    /** Reputation delta for a chat interaction (built-in or custom). Reads an optional
+     *  "<type>.reputation.[success|fail]" override from default.yml; falls back to the
+     *  global chat-interact-reputation config value (applied symmetrically), matching the
+     *  behaviour every built-in chat type had before per-type overrides existed. */
+    public int getInteractionReputation(@NotNull String type, boolean success) {
+        int base = Config.CHAT_INTERACT_REPUTATION.asInt();
+        int fallback = base > 1 ? (success ? base : -base) : 0;
+        if (defaultDialogueConfig == null) return fallback;
+        return defaultDialogueConfig.getInt(type + ".reputation." + (success ? "success" : "fail"), fallback);
+    }
+
     public void send(Player player, IVillagerNPC npc, @NotNull Message message) {
         send(player, npc, getRandomMessage(message.getPath(), getRegionKey(npc)));
     }
