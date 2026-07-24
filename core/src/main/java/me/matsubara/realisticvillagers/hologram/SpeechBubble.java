@@ -24,7 +24,9 @@ public final class SpeechBubble {
     public SpeechBubble(RealisticVillagers plugin, LivingEntity entity, String rawText) {
         this.plugin = plugin;
         this.entity = entity;
-        this.text   = "§0" + ChatColor.stripColor(rawText);
+
+        String colorCode = cfg().getString("hologram.speech-bubble.text-color", "&0");
+        this.text = ChatColor.translateAlternateColorCodes('&', colorCode) + ChatColor.stripColor(rawText);
     }
 
     private FileConfiguration cfg() {

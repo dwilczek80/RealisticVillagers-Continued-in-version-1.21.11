@@ -2,6 +2,7 @@ package me.matsubara.realisticvillagers.entity.v26_1.villager.ai.behaviour.work;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.mojang.logging.LogUtils;
 import lombok.Getter;
 import me.matsubara.realisticvillagers.data.ChangeItemType;
 import me.matsubara.realisticvillagers.data.Exchangeable;
@@ -35,11 +36,13 @@ import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.minecraft.world.level.gamerules.GameRules;
 import org.apache.commons.lang3.tuple.Triple;
 import org.bukkit.Bukkit;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.craftbukkit.block.CraftBlock;
 import org.bukkit.craftbukkit.block.data.CraftBlockData;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -212,7 +215,7 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
         }
 
         // Above is a grown crop, try to remove block.
-        if (isValidCrop(aboveState) && !callEntityChangeBlockEvent(villager, aboveFarmlandPos, Blocks.AIR.defaultBlockState()).isCancelled()) {
+        if (isValidCrop(aboveState) && !isEntityChangeBlockEventCancelled(villager, aboveFarmlandPos, Blocks.AIR.defaultBlockState())) {
             level.destroyBlock(aboveFarmlandPos, true, villager);
         }
 
@@ -311,7 +314,7 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
             if (item.isEmpty()) continue;
 
             BlockState newState = getNewState(item);
-            if (newState == null || (checkEvent && callEntityChangeBlockEvent(villager, aboveFarmlandPos, newState).isCancelled())) {
+            if (newState == null || (checkEvent && isEntityChangeBlockEventCancelled(villager, aboveFarmlandPos, newState))) {
                 continue;
             }
 
@@ -326,10 +329,32 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
         return timeWorkedSoFar < HARVEST_DURATION;
     }
 
-    private static @NotNull EntityChangeBlockEvent callEntityChangeBlockEvent(@NotNull Entity entity, @NotNull BlockPos position, BlockState newBlock) {
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static boolean warnedAboutFromData;
+
+    private static boolean isEntityChangeBlockEventCancelled(@NotNull Entity entity, @NotNull BlockPos position, BlockState newBlock) {
         // Fixes "boolean cannot be dereferenced".
-        EntityChangeBlockEvent event = new EntityChangeBlockEvent(entity.getBukkitEntity(), CraftBlock.at(entity.level(), position), CraftBlockData.fromData(newBlock));
+        BlockData data = craftBlockDataOf(newBlock);
+        // CraftBlockData#fromData is an internal CraftBukkit method whose signature isn't guaranteed
+        // stable between snapshot builds of the same Minecraft version (e.g. Purpur 26.2 rebuilds).
+        // If it's gone missing, skip firing the event instead of crashing the villager's AI tick.
+        if (data == null) return false;
+
+        EntityChangeBlockEvent event = new EntityChangeBlockEvent(entity.getBukkitEntity(), CraftBlock.at(entity.level(), position), data);
         Bukkit.getPluginManager().callEvent(event);
-        return event;
+        return event.isCancelled();
+    }
+
+    private static @Nullable BlockData craftBlockDataOf(BlockState newBlock) {
+        try {
+            return CraftBlockData.fromData(newBlock);
+        } catch (NoSuchMethodError error) {
+            if (!warnedAboutFromData) {
+                warnedAboutFromData = true;
+                LOGGER.warn("CraftBlockData#fromData(BlockState) is missing on this server build (CraftBukkit internals changed); "
+                        + "farmland harvesting will keep working, but EntityChangeBlockEvent won't fire for it.", error);
+            }
+            return null;
+        }
     }
 }

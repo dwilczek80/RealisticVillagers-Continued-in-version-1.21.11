@@ -134,6 +134,12 @@ hologram:
     height-offset: 0.8
     view-range: 10.0
     see-through: true
+
+    # Color of the speech bubble's text (use & color codes, e.g. &0 = black,
+    # &f = white, &e = yellow). Default matches the background above (white),
+    # so it stays readable — change both together if you customize the look.
+    text-color: "&0"
+
     background:
       alpha: 255
       red:   255
