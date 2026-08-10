@@ -80,6 +80,13 @@ public final class HologramMenu {
     private boolean frozeVillager = false;
     private int tickCount = 0;
     private VillagerOrder menuOrder = VillagerOrder.WANDERER;
+    // Holding right-click makes the client resend the interact packet several times a second;
+    // without this, each resend after the first toggles the just-opened menu closed again.
+    private final long openedAt = System.currentTimeMillis();
+
+    public long getOpenedAt() {
+        return openedAt;
+    }
 
     // ── Config-driven constants (read once via helpers, never cached as static) ──
 

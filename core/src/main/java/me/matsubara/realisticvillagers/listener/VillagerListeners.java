@@ -18,6 +18,7 @@ import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.files.Messages;
 import me.matsubara.realisticvillagers.gui.InteractGUI;
 import me.matsubara.realisticvillagers.gui.types.MainGUI;
+import me.matsubara.realisticvillagers.hologram.HologramMenu;
 import me.matsubara.realisticvillagers.manager.ExpectingManager;
 import me.matsubara.realisticvillagers.npc.NPC;
 import me.matsubara.realisticvillagers.tracker.VillagerTracker;
@@ -57,6 +58,11 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
 
     private static final MethodHandle MODIFIERS = Reflection.getFieldGetter(EntityDamageEvent.class, "modifiers");
     public static final boolean HOLOGRAM_SUPPORTED = XReflection.supports(19, 4);
+
+    // A held right-click makes the client resend the interact packet several times a second.
+    // Without this, every resend after the one that opened the menu is read as a fresh click
+    // and immediately toggles it closed again (see the isInteracting() branch below).
+    private static final long MENU_REOPEN_DEBOUNCE_MILLIS = 300L;
 
     public VillagerListeners(RealisticVillagers plugin) {
         super(PacketListenerPriority.HIGHEST);
@@ -344,7 +350,10 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
                     // is active the villager is in FOLLOW_ME mode, but the hologram owns the session —
                     // close() handles all state cleanup. Without this ordering, right-clicking would fire
                     // FOLLOW_ME_STOP and leave the hologram orphaned.
-                    plugin.getHologramManager().closeMenu(player.getUniqueId());
+                    HologramMenu menu = plugin.getHologramManager().getMenuForPlayer(player.getUniqueId());
+                    if (menu == null || System.currentTimeMillis() - menu.getOpenedAt() >= MENU_REOPEN_DEBOUNCE_MILLIS) {
+                        plugin.getHologramManager().closeMenu(player.getUniqueId());
+                    }
                 } else if (npc.isFollowing()) {
                     if (hologramEnabled()) {
                         plugin.getHologramManager().openMenu(player, npc);
@@ -460,7 +469,7 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
     }
 
     private boolean hologramEnabled() {
-        return HOLOGRAM_SUPPORTED && plugin.getHologramManager().isEnabled();
+        return HOLOGRAM_SUPPORTED && plugin.getHologramManager().isMenuEnabled();
     }
 
     private boolean preventChangeSkinItemUse(@Nullable Cancellable cancellable, ItemStack item) {

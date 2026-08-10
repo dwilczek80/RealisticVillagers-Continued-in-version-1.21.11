@@ -17,6 +17,13 @@ hologram:
   # INTERACTION MENU  (appears to the right of the villager when opened)
   # ─────────────────────────────────────────────────────────────────────────
   menu:
+    # Set to false to keep the OTHER holograms above (head display, info
+    # panel, speech bubbles) while making right-click interactions open the
+    # old chest-GUI instead of this hologram menu. Only takes effect if
+    # hologram.enabled is also true — that master switch still overrides
+    # everything below it.
+    enabled: true
+
     # Horizontal distance (blocks) from the villager centre to the menu panel.
     side-offset: 1.5
 

@@ -27,8 +27,16 @@ public final class HologramManager {
         return cfg == null || cfg.getBoolean("hologram.enabled", true);
     }
 
+    // Lets servers keep the head display / info panel / speech bubbles while sending
+    // right-click interactions to the old chest-GUI instead of the hologram menu.
+    public boolean isMenuEnabled() {
+        if (!isEnabled()) return false;
+        var cfg = plugin.getHologramConfig();
+        return cfg == null || cfg.getBoolean("hologram.menu.enabled", true);
+    }
+
     public void openMenu(Player player, IVillagerNPC npc) {
-        if (!isEnabled()) return;
+        if (!isMenuEnabled()) return;
 
         // Close any existing menu for this player before opening a new one.
         HologramMenu existing = playerMenus.remove(player.getUniqueId());
@@ -69,6 +77,8 @@ public final class HologramManager {
     }
 
     public void showSpeech(LivingEntity entity, String rawText) {
+        if (!isEnabled()) return;
+
         var cfg = plugin.getHologramConfig();
         if (cfg != null && !cfg.getBoolean("hologram.speech-bubble.enabled", true)) return;
 

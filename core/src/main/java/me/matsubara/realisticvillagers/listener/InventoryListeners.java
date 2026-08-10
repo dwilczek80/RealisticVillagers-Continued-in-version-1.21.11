@@ -368,7 +368,7 @@ public final class InventoryListeners implements Listener {
                 settings.setShouldStopInteracting(false);
                 openCombatGUI(npc, player, null, null, false);
             } else if (isCustomItem(current, "back")) {
-                if (VillagerListeners.HOLOGRAM_SUPPORTED) {
+                if (VillagerListeners.HOLOGRAM_SUPPORTED && plugin.getHologramManager().isMenuEnabled()) {
                     // Hologram system active: re-open the hologram (it was closed when CombatSettingsGUI opened).
                     settings.setShouldStopInteracting(false);
                     runTask(() -> plugin.getHologramManager().openMenu(player, npc));
