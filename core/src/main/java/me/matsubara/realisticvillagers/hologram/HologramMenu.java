@@ -1,5 +1,8 @@
 package me.matsubara.realisticvillagers.hologram;
 
+import me.matsubara.realisticvillagers.village.RadarPanel;
+import me.matsubara.realisticvillagers.village.Village;
+import me.matsubara.realisticvillagers.village.VillageManager;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import me.matsubara.realisticvillagers.data.GUIInteractType;
 import me.matsubara.realisticvillagers.data.InteractType;
@@ -70,6 +73,15 @@ public final class HologramMenu {
     private static final int INFO_SECTIONS = 3;
 
     private @Nullable Integer hoveredDisplayIdx = null;
+
+    // Radar view state. Kept per open menu so one player's zoom doesn't affect another's.
+    // Zoom is the fraction of the village radius shown: 1.0 is the whole settlement.
+    private double radarZoom = 1.0d;
+    private boolean radarResidents = true;
+    private boolean radarMayor = true;
+    private @Nullable RadarPanel radarPanel;
+    private me.matsubara.realisticvillagers.village.VillageBuildings.@Nullable Footprint selectedBuilding;
+    private me.matsubara.realisticvillagers.village.VillageBuildings.@Nullable Footprint hoveredBuilding;
 
     private org.bukkit.Location menuBase;
     // Player-right unit vector (updated every tick via calculateMenuBase).
@@ -144,9 +156,18 @@ public final class HologramMenu {
     }
 
     public HologramMenu(RealisticVillagers plugin, Player player, IVillagerNPC npc) {
+        this(plugin, player, npc, false);
+    }
+
+    /**
+     * @param mayorMode opens straight onto the settlement screen instead of the ordinary
+     *                  villager menu — used when this villager holds the mayor's seat.
+     */
+    public HologramMenu(RealisticVillagers plugin, Player player, IVillagerNPC npc, boolean mayorMode) {
         this.plugin = plugin;
         this.player = player;
         this.npc = npc;
+        if (mayorMode) this.state = MenuState.MAYOR;
     }
 
     public void open() {
@@ -157,7 +178,9 @@ public final class HologramMenu {
 
         calculateMenuBase(vilLoc);
         if (hcfg().getBoolean("hologram.head-display.enabled", true)) spawnHeadDisplay(vilLoc);
-        spawnMenuLines(buildMainMenuLines());
+        // currentLines() rather than the main menu directly, so an initial state set by the
+        // constructor (the mayor screen) is honoured.
+        spawnMenuLines(currentLines());
 
         if (menuOrder == VillagerOrder.FOLLOW) {
             // Villager is already following — stayInPlace() would cancel the follow AI, so skip it.
@@ -185,6 +208,13 @@ public final class HologramMenu {
                 repositionAll(vilLoc);
                 updateHoverHighlight();
                 if (tickCount % 10 == 0) updateHeadDisplay(vilLoc);
+
+                // Follow the player by moving the existing panel, exactly like the menu lines
+                // above. Rebuilding it instead would respawn every tile and read as a jump.
+                if (state == MenuState.RADAR) {
+                    repositionRadar();
+                    updateBuildingHover();
+                }
             }
         };
         tickTaskId = task.runTaskTimer(plugin, 2L, 2L).getTaskId();
@@ -250,6 +280,9 @@ public final class HologramMenu {
                 d.setText(lineText);
                 d.setBillboard(Display.Billboard.VERTICAL);
                 d.setViewRange(headViewRange);
+                // Cull by a box big enough to cover the text, not by its anchor point.
+                d.setDisplayWidth(4.0f);
+                d.setDisplayHeight(4.0f);
                 d.setSeeThrough(headSee);
                 d.setPersistent(false);
                 d.setDefaultBackground(false);
@@ -351,6 +384,9 @@ public final class HologramMenu {
             d.setText(text);
             d.setBillboard(Display.Billboard.VERTICAL);
             d.setViewRange(viewRange);
+            // Cull by a box big enough to cover the text, not by its anchor point.
+            d.setDisplayWidth(4.0f);
+            d.setDisplayHeight(4.0f);
             d.setSeeThrough(seeThrough);
             d.setPersistent(false);
             d.setDefaultBackground(false);
@@ -710,7 +746,430 @@ public final class HologramMenu {
             case TALK         -> buildTalkMenuLines();
             case INTERACTIONS -> buildInteractionsMenuLines();
             case CUSTOM       -> customMenuName != null ? buildCustomMenuLines(customMenuName) : List.of();
+            case MAYOR        -> buildMayorMenuLines();
+            case RADAR        -> buildRadarLines();
         };
+    }
+
+    // ── Mayor screens ──────────────────────────────────────────────────────────
+
+    private @Nullable me.matsubara.realisticvillagers.village.Village mayorVillage() {
+        var villages = plugin.getVillageManager();
+        if (villages == null || !villages.isEnabled()) return null;
+
+        return npc.bukkit() instanceof Villager villager ? villages.getVillage(villager) : null;
+    }
+
+    private List<MenuLine> buildMayorMenuLines() {
+        List<MenuLine> lines = new ArrayList<>();
+
+        var villages = plugin.getVillageManager();
+        var mayors = plugin.getMayorManager();
+        var village = mayorVillage();
+
+        if (village == null || villages == null || mayors == null) {
+            lines.add(new MenuLine(label("hologram.labels.mayor.unavailable", "&cNo settlement here."), null));
+            lines.add(new MenuLine(label("hologram.menus.mayor.back", "&c« &fBack"), MenuAction.BACK));
+            return lines;
+        }
+
+        lines.add(new MenuLine(label("hologram.labels.mayor.header", "&6&l— MAYOR —"), null));
+        lines.add(new MenuLine(label("hologram.labels.mayor.village", "&7Village: &f")
+                + village.getDisplayName(), null));
+        lines.add(new MenuLine(label("hologram.labels.mayor.residents", "&7Residents: &f")
+                + villages.getResidents(village).size(), null));
+
+        int standing = villages.getMayorReputation(village, player);
+        int required = mayors.getRequiredReputation();
+
+        // Translate the whole composed line: label() only converts the config value, so the
+        // colour codes concatenated around it here would otherwise reach the display raw.
+        lines.add(new MenuLine(PluginUtils.translate((standing >= required ? "&a" : "&c")
+                + hcfg().getString("hologram.labels.mayor.standing", "Standing: ")
+                + standing + "&7/&f" + required), null));
+
+        lines.add(new MenuLine(label("hologram.menus.mayor.radar", "&e» &fVillage radar"), MenuAction.MAYOR_RADAR));
+        lines.add(new MenuLine(label("hologram.menus.mayor.storage", "&e» &fSettlement stores"), MenuAction.MAYOR_STORAGE));
+        lines.add(new MenuLine(label("hologram.menus.mayor.commission", "&e» &fCommission a building"), MenuAction.MAYOR_COMMISSION));
+
+        boolean showingBorders = plugin.getBorderVisualizer() != null
+                && plugin.getBorderVisualizer().isShowing(player);
+        lines.add(new MenuLine(toggle("hologram.menus.mayor.borders", "&e» &fShow borders: ", showingBorders),
+                MenuAction.MAYOR_BORDERS));
+        lines.add(new MenuLine(label("hologram.menus.mayor.rename", "&e» &fRename settlement"), MenuAction.MAYOR_RENAME));
+
+        lines.add(new MenuLine(label("hologram.menus.mayor.back", "&c« &fBack"), MenuAction.BACK));
+
+        return lines;
+    }
+
+    private List<MenuLine> buildRadarLines() {
+        List<MenuLine> lines = new ArrayList<>();
+
+        var villages = plugin.getVillageManager();
+        var village = mayorVillage();
+
+        if (village == null || villages == null) {
+            lines.add(new MenuLine(label("hologram.labels.mayor.unavailable", "&cNo settlement here."), null));
+            lines.add(new MenuLine(label("hologram.menus.mayor.back", "&c« &fBack"), MenuAction.BACK));
+            return lines;
+        }
+
+        lines.add(new MenuLine(label("hologram.labels.radar.header", "&6&l— RADAR —"), null));
+
+        // The map itself is drawn in the world as a block-display panel; these lines are just
+        // its controls, which is why no map rows appear here.
+        drawRadarPanel(village, villages);
+
+        int radius = village.getEffectiveRadius(villages.getDefaultRadius());
+        int shown = (int) Math.max(8.0d, radius * radarZoom);
+
+        lines.add(new MenuLine(label("hologram.labels.radar.scale", "&8Showing &7")
+                + shown + label("hologram.labels.radar.scale-suffix", "&8 blocks around the bell"), null));
+        lines.add(new MenuLine(label("hologram.labels.radar.buildings", "&8Buildings: &7")
+                + me.matsubara.realisticvillagers.village.VillageBuildings.detect(villages, village).size(), null));
+
+        lines.add(new MenuLine(toggle("hologram.menus.radar.residents", "&e» &fResidents: ", radarResidents),
+                MenuAction.RADAR_TOGGLE_RESIDENTS));
+        lines.add(new MenuLine(toggle("hologram.menus.radar.mayor", "&e» &fMayor: ", radarMayor),
+                MenuAction.RADAR_TOGGLE_MAYOR));
+        lines.add(new MenuLine(label("hologram.menus.radar.zoom-in", "&e» &fZoom in"), MenuAction.RADAR_ZOOM_IN));
+        lines.add(new MenuLine(label("hologram.menus.radar.zoom-out", "&e» &fZoom out"), MenuAction.RADAR_ZOOM_OUT));
+        lines.add(new MenuLine(label("hologram.menus.mayor.back", "&c« &fBack"), MenuAction.BACK));
+
+        return lines;
+    }
+
+    /** (Re)draws the in-world map panel for the current filters and zoom. */
+    private void drawRadarPanel(
+            me.matsubara.realisticvillagers.village.@NotNull Village village,
+            me.matsubara.realisticvillagers.village.@NotNull VillageManager villages) {
+
+        LivingEntity bukkit = npc.bukkit();
+        if (bukkit == null || !bukkit.isValid()) return;
+
+        double panelSize = hcfg().getDouble("hologram.radar.panel-size", 2.6d);
+
+        if (radarPanel == null) radarPanel = new RadarPanel();
+
+        radarPanel.draw(
+                player,
+                radarAnchor(bukkit),
+                village,
+                villages,
+                radarResidents,
+                radarMayor,
+                panelSize,
+                radarZoom,
+                RadarPanel.readColors(hcfg().getConfigurationSection("hologram.radar.colors")),
+                selectedBuilding,
+                this::villagerHead);
+    }
+
+    /**
+     * The villager's own head, using the same skin the plugin renders them with — the one you
+     * get from a villager that dies holding a cross.
+     */
+    private org.bukkit.inventory.@Nullable ItemStack villagerHead(@NotNull Villager villager) {
+        IVillagerNPC resident = plugin.getConverter().getNPC(villager).orElse(null);
+
+        String texture = plugin.getNPCTextureURL(resident);
+        if (texture == null || texture.isEmpty()) return null;
+
+        return new me.matsubara.realisticvillagers.util.ItemBuilder(org.bukkit.Material.PLAYER_HEAD)
+                .setHead(texture, true)
+                .build();
+    }
+
+    /** The building the player is pointing at on the map, or {@code null}. */
+    public me.matsubara.realisticvillagers.village.VillageBuildings.@Nullable Footprint getHoveredBuilding() {
+        if (state != MenuState.RADAR || radarPanel == null) return null;
+        return radarPanel.hitTest(player);
+    }
+
+    /** Lights up whichever building the crosshair is over, recolouring in place. */
+    private void updateBuildingHover() {
+        if (radarPanel == null || !radarPanel.isVisible()) return;
+
+        var hovered = radarPanel.hitTest(player);
+
+        // Only touch the displays when the hover actually changed.
+        if (java.util.Objects.equals(hovered, hoveredBuilding)) return;
+        hoveredBuilding = hovered;
+
+        radarPanel.applyHighlight(hoveredBuilding, selectedBuilding,
+                RadarPanel.readColors(hcfg().getConfigurationSection("hologram.radar.colors")));
+    }
+
+    /**
+     * Selects the building under the crosshair and reports it.
+     *
+     * @return true when a building was hit, so the caller knows the click was consumed.
+     */
+    public boolean clickBuilding() {
+        var building = getHoveredBuilding();
+        if (building == null) return false;
+
+        // Clicking the selected building again deselects it.
+        selectedBuilding = building.equals(selectedBuilding) ? null : building;
+
+        if (selectedBuilding != null) describeBuilding(building);
+
+        // Recolour in place rather than redrawing, so the map doesn't blink on every click.
+        if (radarPanel != null) {
+            radarPanel.applyHighlight(hoveredBuilding, selectedBuilding,
+                    RadarPanel.readColors(hcfg().getConfigurationSection("hologram.radar.colors")));
+        }
+
+        return true;
+    }
+
+    /** Turns the in-world settlement border on or off for this player. */
+    private void toggleVillageBorders() {
+        var borders = plugin.getBorderVisualizer();
+        if (borders == null) return;
+
+        boolean showing = borders.toggle(player, mayorVillage());
+
+        player.sendMessage(PluginUtils.translate(showing
+                ? label("hologram.labels.mayor.borders-on", "&aVillage borders are now visible.")
+                : label("hologram.labels.mayor.borders-off", "&7Village borders hidden.")));
+
+        // Refresh so the toggle's on/off label matches what just happened.
+        showState(MenuState.MAYOR);
+    }
+
+    /**
+     * Lets the mayor's visitor rename the settlement.
+     * <p>
+     * The anvil opens with the current name already in it rather than blank, so the generated
+     * name is a starting point to edit instead of something to retype from memory — which is
+     * the whole reason a village is given a real name when it is found.
+     */
+    private void renameVillage() {
+        me.matsubara.realisticvillagers.village.Village village = mayorVillage();
+        if (village == null) {
+            player.sendMessage(PluginUtils.translate(label("hologram.labels.mayor.unavailable", "&cNo settlement here.")));
+            return;
+        }
+
+        String title = label("hologram.labels.mayor.rename-title", "&8Name this settlement");
+        String current = village.getDisplayName();
+
+        // Off the click: opening an inventory from inside the hologram's own click handling
+        // leaves the menu holding a screen that is about to be replaced.
+        plugin.getServer().getScheduler().runTask(plugin, () -> new net.wesjd.anvilgui.AnvilGUI.Builder()
+                .plugin(plugin)
+                .title(PluginUtils.translate(title))
+                .text(current)
+                .onClick((slot, state) -> {
+                    if (slot != net.wesjd.anvilgui.AnvilGUI.Slot.OUTPUT) {
+                        return java.util.Collections.singletonList(
+                                net.wesjd.anvilgui.AnvilGUI.ResponseAction.replaceInputText(state.getText()));
+                    }
+
+                    String name = state.getText().trim();
+                    if (name.isEmpty() || name.length() > MAX_VILLAGE_NAME) {
+                        player.sendMessage(PluginUtils.translate(
+                                label("hologram.labels.mayor.rename-invalid", "&cThat name won't do.")));
+                        return java.util.Collections.singletonList(
+                                net.wesjd.anvilgui.AnvilGUI.ResponseAction.close());
+                    }
+
+                    village.setName(name);
+                    player.sendMessage(PluginUtils.translate(
+                            label("hologram.labels.mayor.rename-done", "&aThis settlement is now &f%village%&a.")
+                                    .replace("%village%", name)));
+
+                    return java.util.Collections.singletonList(
+                            net.wesjd.anvilgui.AnvilGUI.ResponseAction.close());
+                })
+                .open(player));
+    }
+
+    /** Longest a settlement name may be, so it still fits a boss bar and the map's header. */
+    private static final int MAX_VILLAGE_NAME = 32;
+
+    /** Tells the player what the building they clicked is and what it is used for. */
+    private void describeBuilding(me.matsubara.realisticvillagers.village.VillageBuildings.@NotNull Footprint building) {
+        String kind = switch (building.type()) {
+            case RESIDENTIAL -> label("hologram.labels.radar.type-residential", "&aResidential");
+            case WORKPLACE -> label("hologram.labels.radar.type-workplace", "&6Workplace");
+            case MIXED -> label("hologram.labels.radar.type-mixed", "&bHome & workshop");
+            case UNKNOWN -> label("hologram.labels.radar.type-unknown", "&7Unknown");
+        };
+
+        player.sendMessage(PluginUtils.translate(label("hologram.labels.radar.building-header", "&8— Building —")));
+
+        player.sendMessage(PluginUtils.translate(label("hologram.labels.radar.building-kind", "&7Type: &f%kind%")
+                .replace("%kind%", kind)));
+
+        // Renamed from building-size when height was added. The updater only ever adds keys it
+        // cannot find, so an existing building-size line would have kept its old text and the
+        // height would have had nowhere to appear; under a new name every install gets it.
+        player.sendMessage(PluginUtils.translate(label("hologram.labels.radar.building-box",
+                        "&7Size: &f%width%x%depth%x%height% &7blocks at &f%x%, %y%, %z%")
+                .replace("%width%", String.valueOf(building.width()))
+                .replace("%depth%", String.valueOf(building.depth()))
+                .replace("%height%", String.valueOf(building.height()))
+                .replace("%x%", String.valueOf((int) building.centerX()))
+                .replace("%y%", String.valueOf(building.minY()))
+                .replace("%z%", String.valueOf((int) building.centerZ()))));
+
+        if (building.beds() > 0) {
+            player.sendMessage(PluginUtils.translate(label("hologram.labels.radar.building-beds", "&7Sleeps: &f%count%")
+                    .replace("%count%", String.valueOf(building.beds()))));
+        }
+
+        if (!building.professions().isEmpty()) {
+            player.sendMessage(PluginUtils.translate(label("hologram.labels.radar.building-work", "&7Work: &f%trades%")
+                    .replace("%trades%", String.join(", ", building.professions()))));
+        }
+
+        sendOutlineButton(building);
+    }
+
+    /**
+     * Offers a clickable line that outlines the building in the world.
+     * <p>
+     * The quickest way to check the scanner is honest: click, then look at where the particles
+     * land versus where the walls actually are. Kept as a button rather than firing on every
+     * building click, because reading what a building is and asking to see it marked out are two
+     * different questions, and only one of them wants particles in your face.
+     * <p>
+     * A chat click can only reach the plugin by running a command, so it runs one — an internal
+     * sub-command that is left out of the help text and tab-completion, and handled before the
+     * argument-count guard that would otherwise reject its six numbers.
+     */
+    private void sendOutlineButton(me.matsubara.realisticvillagers.village.VillageBuildings.@NotNull Footprint building) {
+        var borders = plugin.getBorderVisualizer();
+        LivingEntity bukkit = npc.bukkit();
+        if (borders == null || bukkit == null || bukkit.getWorld() == null) return;
+
+        String text = label("hologram.labels.radar.building-outline", "&b[Show this building in the world]");
+
+        net.md_5.bungee.api.chat.TextComponent component =
+                new net.md_5.bungee.api.chat.TextComponent(PluginUtils.translate(text));
+
+        component.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(
+                net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND,
+                "/rv outline " + building.minX() + " " + building.minZ()
+                        + " " + building.maxX() + " " + building.maxZ()
+                        + " " + building.minY() + " " + building.maxY()));
+
+        player.spigot().sendMessage(component);
+    }
+
+    /**
+     * Hands the player over to a chest screen without letting the villager walk away.
+     * <p>
+     * Opening an inventory closes this menu, and closing it normally releases the villager it had
+     * frozen — so the mayor wandered off the moment its own storage was opened. Clearing the flag
+     * first means close() leaves the freeze alone; whichever chest screen took over releases it
+     * when the player finally shuts that.
+     * <p>
+     * Run off the click, so the menu isn't holding a screen that is about to be replaced.
+     */
+    private void handOver(@NotNull Runnable open) {
+        frozeVillager = false;
+        plugin.getServer().getScheduler().runTask(plugin, open);
+    }
+
+    /** Glides the map along with the player, without rebuilding it. */
+    private void repositionRadar() {
+        if (radarPanel == null || !radarPanel.isVisible()) return;
+
+        LivingEntity bukkit = npc.bukkit();
+        if (bukkit == null || !bukkit.isValid()) return;
+
+        radarPanel.reposition(player, radarAnchor(bukkit), hcfg().getDouble("hologram.radar.panel-size", 2.6d));
+    }
+
+    /** Where the map hangs: opposite the menu text, above the villager's head. */
+    private org.bukkit.@NotNull Location radarAnchor(@NotNull LivingEntity bukkit) {
+        double panelSize = hcfg().getDouble("hologram.radar.panel-size", 2.6d);
+        double gap = hcfg().getDouble("hologram.radar.side-offset", 0.9d);
+        double heightOffset = hcfg().getDouble("hologram.radar.height-offset", 2.4d);
+
+        double away = gap + panelSize / 2.0d;
+
+        return bukkit.getLocation().clone().add(
+                -rightX * away,
+                bukkit.getHeight() + 0.05d + heightOffset,
+                -rightZ * away);
+    }
+
+    /** Takes the map panel down. Safe to call when it was never shown. */
+    private void hideRadarPanel() {
+        if (radarPanel != null) {
+            radarPanel.remove();
+            radarPanel = null;
+        }
+        selectedBuilding = null;
+        hoveredBuilding = null;
+    }
+
+    /** Reports the settlement's stores in chat — far more readable than as hologram lines. */
+    /**
+     * Opens the settlement's stores.
+     * <p>
+     * It used to print the contents to chat and stop there, which made the pool something you
+     * could read and never use — no way to give goods towards a building, and no way to draw any
+     * out. Exactly the gap the commission list had, and missed at the time because I only looked
+     * at the one entry I was changing.
+     * <p>
+     * A chest, for the same reason the commission list is one: goods with amounts against them
+     * are a grid, and items you pick up and put down are what a chest already does. A column of
+     * floating text can show them but cannot be handed anything.
+     */
+    private void showMayorStorage() {
+        var village = mayorVillage();
+        if (village == null) return;
+
+        handOver(() -> player.openInventory(
+                new me.matsubara.realisticvillagers.gui.types.StorageGUI(plugin, village, player).getInventory()));
+    }
+
+    /** Tells the player whether they may commission a building, and why not when they can't. */
+    /**
+     * Opens the list of buildings, or says why it can't be opened.
+     * <p>
+     * It used to only ever print the status line and stop there, so from the hologram menu you
+     * could be told you were allowed to commission a building and then have no way to commission
+     * one. The list itself stays a chest: it is a grid of buildings with a table of materials
+     * against each, which is what a chest is and what a column of floating text is not.
+     */
+    private void showCommissionStatus() {
+        var village = mayorVillage();
+        var mayors = plugin.getMayorManager();
+        if (village == null || mayors == null) return;
+
+        var result = mayors.canCommission(village, player);
+
+        if (result.isAllowed()) {
+            handOver(() -> player.openInventory(
+                    new me.matsubara.realisticvillagers.gui.types.CommissionGUI(plugin, village, player).getInventory()));
+            return;
+        }
+
+        String message = switch (result) {
+            case ALLOWED -> label("hologram.labels.mayor.commission-allowed",
+                    "&aThe mayor will hear your building plans.");
+            case NO_MAYOR -> label("hologram.labels.mayor.commission-no-mayor",
+                    "&cThis settlement has no mayor.");
+            case LOW_REPUTATION -> label("hologram.labels.mayor.commission-low-reputation",
+                    "&cYour standing with the mayor is too low.");
+            case NO_FAMILY -> label("hologram.labels.mayor.commission-no-family",
+                    "&cYou need a family among this village's residents.");
+        };
+
+        player.sendMessage(PluginUtils.translate(message));
+    }
+
+    private String toggle(String path, String def, boolean on) {
+        return label(path, def) + (on
+                ? label("hologram.labels.radar.on", "&aon")
+                : label("hologram.labels.radar.off", "&7off"));
     }
 
     // ── Menu line builders ─────────────────────────────────────────────────────
@@ -1004,6 +1463,16 @@ public final class HologramMenu {
         switch (action) {
             case TALK        -> { pushHistory(); showState(MenuState.TALK); }
             case INTERACTIONS-> { pushHistory(); showState(MenuState.INTERACTIONS); }
+            case MAYOR_RADAR -> { pushHistory(); showState(MenuState.RADAR); }
+            case MAYOR_STORAGE -> showMayorStorage();
+            case MAYOR_COMMISSION -> showCommissionStatus();
+            case MAYOR_BORDERS -> toggleVillageBorders();
+            case MAYOR_RENAME -> renameVillage();
+            case RADAR_TOGGLE_RESIDENTS -> { radarResidents = !radarResidents; showState(MenuState.RADAR); }
+            case RADAR_TOGGLE_MAYOR -> { radarMayor = !radarMayor; showState(MenuState.RADAR); }
+            // Zoom narrows the area the panel covers, magnifying the middle of the village.
+            case RADAR_ZOOM_IN -> { radarZoom = Math.max(0.25d, radarZoom - 0.25d); showState(MenuState.RADAR); }
+            case RADAR_ZOOM_OUT -> { radarZoom = Math.min(2.0d, radarZoom + 0.25d); showState(MenuState.RADAR); }
             case CUSTOM_MENU -> {
                 String target = hoveredCustomTarget();
                 if (target != null) { pushHistory(); customPage = 0; showState(MenuState.CUSTOM, target); }
@@ -1156,6 +1625,11 @@ public final class HologramMenu {
 
     private void showState(MenuState newState, @Nullable String customName) {
         if (newState != MenuState.INTERACTIONS) awaitingDivorceConfirm = false;
+
+        // The map panel belongs to the radar screen only; leaving it must take the tiles down,
+        // or they'd hang in the world with nothing owning them.
+        if (newState != MenuState.RADAR) hideRadarPanel();
+
         this.state = newState;
         this.customMenuName = newState == MenuState.CUSTOM ? customName : null;
         spawnMenuLines(currentLines());
@@ -1170,6 +1644,12 @@ public final class HologramMenu {
     private void popState() {
         NavTarget target = navHistory.pollLast();
         if (target == null) {
+            // The mayor's screen is a root, not a branch off the villager menu: backing out of
+            // it closes the session rather than dropping into Talk/Trade for the mayor.
+            if (state == MenuState.MAYOR) {
+                close(false, true);
+                return;
+            }
             customPage = 0;
             showState(MenuState.MAIN);
         } else {
@@ -1205,6 +1685,10 @@ public final class HologramMenu {
     public void close(boolean keepInteracting, boolean preserveOrder) {
         if (closed) return;
         closed = true;
+
+        // Before anything else: the map panel is world entities, and leaving them behind on a
+        // close (including the auto-close on distance) would litter the world.
+        hideRadarPanel();
 
         if (tickTaskId != -1) {
             plugin.getServer().getScheduler().cancelTask(tickTaskId);

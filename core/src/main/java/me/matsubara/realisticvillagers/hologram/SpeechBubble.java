@@ -55,6 +55,8 @@ public final class SpeechBubble {
             d.setAlignment(TextDisplay.TextAlignment.CENTER);
             d.setLineWidth(lineWidth);
             d.setViewRange(viewRange);
+            d.setDisplayWidth(4.0f);
+            d.setDisplayHeight(4.0f);
             d.setSeeThrough(seeThrough);
             d.setPersistent(false);
         });

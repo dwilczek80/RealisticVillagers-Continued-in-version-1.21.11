@@ -13,6 +13,15 @@ import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
+// VersionWrapper and its nested AnvilContainerWrapper are NOT imported on purpose.
+//
+// This class already sits in me.matsubara.realisticvillagers.util.anvilgui.version, which is
+// where core's shade plugin relocates net.wesjd.anvilgui to — so both types resolve from this
+// very package and an import would be redundant. Importing the original net.wesjd names instead
+// compiles cleanly, because that library is on the compile classpath, and then fails at runtime
+// with NoClassDefFoundError: the relocation means those names do not exist in the shipped jar.
+// That took out every anvil screen on this version, not just the one being worked on at the time.
+import me.matsubara.realisticvillagers.util.anvilgui.version.VersionWrapper.AnvilContainerWrapper;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.event.CraftEventFactory;

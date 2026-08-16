@@ -419,6 +419,15 @@ public final class VillagerTracker implements Listener {
 
         String name;
         if (Config.DISABLE_NAMETAGS.asBool()
+                // Names on look only: the profile must not carry one either.
+                //
+                // A villager with a skin is a player as far as the client is concerned, and a
+                // client draws a player's name above its head off the profile by itself — no
+                // packet from us is involved, so nothing on the plugin's side can take it back
+                // per player. That is the name that survived every attempt to hide it. Spawning
+                // the profile nameless leaves the text display as the only thing writing a name,
+                // and that one is already sent to one player at a time.
+                || Config.NAMETAGS_ONLY_WHEN_LOOKING.asBool(false)
                 || defaultName.equals(HIDE_NAMETAG_NAME)
                 || isInvalidNametag(defaultName)) {
             name = HIDE_NAMETAG_NAME;

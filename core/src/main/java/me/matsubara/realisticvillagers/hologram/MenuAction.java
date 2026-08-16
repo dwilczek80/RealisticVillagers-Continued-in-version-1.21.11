@@ -18,6 +18,9 @@ public enum MenuAction {
     // Config-defined custom chest GUI (any unrecognised id that matches
     // a "gui.custom.<id>" section in gui.yml becomes this).
     CUSTOM_GUI,
+    // Mayor screens
+    MAYOR_RADAR, MAYOR_STORAGE, MAYOR_COMMISSION, MAYOR_BORDERS, MAYOR_RENAME,
+    RADAR_TOGGLE_RESIDENTS, RADAR_TOGGLE_MAYOR, RADAR_ZOOM_IN, RADAR_ZOOM_OUT,
     // Info panel navigation (left side)
     INFO_PREV, INFO_NEXT, CHILDREN_PREV, CHILDREN_NEXT,
     // Navigation

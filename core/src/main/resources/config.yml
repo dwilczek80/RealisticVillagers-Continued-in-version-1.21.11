@@ -125,8 +125,19 @@ villager-defend-following-player: true
 # NOTE: At least one of the 3 previous options must be enabled.
 villager-defend-attack-players: false
 
-# Whether to disable player nametags.
-disable-nametags: false
+# Villager name tags.
+nametags:
+  # Show a villager's name only to the player looking at it.
+  #
+  # A settlement of forty villagers is forty name tags in the air at once, drawn through walls
+  # and through each other - so the more alive a village is, the less of it you can see. This
+  # answers "who is this" at the moment the question is actually being asked.
+  #
+  # Off by default: always-visible name tags are what most servers expect, and this changes
+  # something players look at constantly.
+  only-when-looking: false
+  # How far away a villager can be and still have its name shown, in blocks.
+  look-range: 12.0
 
 
 # If true, arrows shot by villagers will pass through other villagers.
@@ -189,6 +200,336 @@ annoying-meter:
   reputation-loss: 2
   # Whether to spawn angry particles above the villager.
   angry-particles: true
+
+# Settlement system: groups villagers into villages that can have a mayor, hold shared
+# resources and commission buildings. Villages are detected automatically from the village
+# bell, and can be fine-tuned afterwards through the mayor's menu.
+village:
+  # Whether the settlement system is enabled at all.
+  enabled: true
+  # Default village radius in blocks, measured horizontally from the bell.
+  # A village covers the full height of its area, so basements and rooftops still count.
+  # The mayor's menu can override this per village.
+  default-radius: 64
+  # Divisor X in the mayor reputation formula: R_mayor = (sum of reputation with every
+  # resident) / X. Reputation with the mayor itself is excluded — you earn standing with
+  # the mayor by dealing well with ordinary residents, never by talking to the mayor.
+  # LOWER value = reputation grows FASTER. Note the sum scales with village size, so large
+  # settlements reach high mayor reputation more easily; raise X to compensate.
+  mayor-reputation-divisor: 10
+  # How often (in seconds) village data is written to villages.yml.
+  save-interval: 300
+
+  # ── Performance ──────────────────────────────────────────────────────────
+  # Finding a village's residents is an entity query, and menus, reputation maths and the
+  # election loop all need it. These two settings keep that cost under control.
+
+  # How far up and down from the bell to look for residents, in blocks. Villages are
+  # surface-level in practice; raising this a lot makes the query markedly more expensive.
+  vertical-range: 64
+
+  # How long (in milliseconds) a resident lookup is reused before querying the world again.
+  # Higher = cheaper but slower to notice a villager walking in or out. Lower it only if you
+  # need near-instant reactions and can spare the performance.
+  resident-cache-millis: 2000
+
+  # ── Building detection ───────────────────────────────────────────────────
+  # The radar finds buildings by ruling out nature: any solid block that isn't ordinary
+  # terrain counts as something a builder placed. That way igloos, datapack structures and
+  # anything else are all picked up without having to be listed anywhere.
+  #
+  # These two lists let you correct that judgement for blocks it gets wrong — most likely
+  # blocks added by a datapack or another plugin. Use Minecraft material names.
+  building-materials:
+    # Force these to count as part of a building, even if they look natural.
+    # Example: - SNOW_BLOCK
+    building: []
+    # Force these to count as terrain, so they never create a phantom building.
+    # Example: - PACKED_ICE
+    natural: []
+
+  mayor:
+    # Reputation with the mayor a player needs before it will accept a building
+    # commission. Remember this is the derived value from the formula above, not the
+    # reputation shown for an individual villager.
+    reputation-required-to-commission: 50
+    # Whether the player must also have a family (be partnered to one of this village's
+    # residents) before commissioning buildings.
+    require-family: true
+
+    # Block shown floating above the mayor's head, the way other villagers show their
+    # workstation. The mayor has no workstation of its own, so this stands in as its badge
+    # of office. Must be a placeable block; falls back to EMERALD_BLOCK if invalid.
+    head-block: EMERALD_BLOCK
+
+  # When a village has no mayor (it died, or none was ever elected), an election opens
+  # automatically. Candidates are drawn ONLY from unemployed residents, so no working
+  # villager loses their job to run for office.
+  election:
+    enabled: true
+    # How long voting stays open, in seconds.
+    duration: 300
+    # How many candidates stand. If fewer unemployed residents exist, all of them run.
+    candidates: 3
+    # Vote weights. A player's vote counts for more than a settler's, so players decide the
+    # outcome when they take part, while an empty server still elects someone on its own.
+    player-vote-weight: 5
+    villager-vote-weight: 1
+    # How often (in seconds) the plugin checks for vacant seats and finished elections.
+    check-interval: 10
+
+    # Texts for the ballot and the mayor's screen live in configs/gui.yml,
+    # the election countdown in configs/holograms.yml, and the chat messages
+    # in configs/messages/system.yml.
+
+  # ── Settlement economy ───────────────────────────────────────────────────
+  # Every villager with a trade also has a role in its settlement, and workers put what they
+  # produce into the village's shared storage — the pool the mayor's screen shows and that
+  # building will draw from. Which trade produces what is fixed in code:
+  #
+  #   Fletcher .................. logs, sticks
+  #   Mason, Armorer ............ cobblestone, stone, coal, raw iron
+  #   Toolsmith, Weaponsmith .... iron ingots, nuggets, coal
+  #   Farmer, Butcher ........... wheat, carrots, potatoes, bread
+  #   Fisherman ................. cod, salmon, string
+  #   Shepherd .................. wool, string
+  #   Leatherworker ............. leather, rabbit hide
+  #   Librarian, Cartographer ... paper, books, sugar cane
+  #   Cleric .................... redstone, glowstone dust, lapis
+  #
+  # A villager only produces while it is actually at work: it must have a workstation, be
+  # near it, and it must be daytime. The mayor governs instead of working a trade.
+  economy:
+    enabled: true
+    # How often (in seconds) a production round runs.
+    interval: 60
+    # Chance (0.0-1.0) that a given worker contributes in a given round. Below 1 so a large
+    # settlement's output stays uneven rather than arriving in one lump every minute.
+    chance: 0.5
+    # How much one contribution is worth.
+    min-amount: 1
+    max-amount: 3
+
+  # ── Settlement names ─────────────────────────────────────────────────────
+  # A settlement is named when it is first found, from the biome it stands in: one word
+  # from "first" joined to one from "second" — Sunreach, Frosthold, Mirewater. The name is
+  # then saved with the village, so editing these lists renames nothing that already
+  # exists; it only changes what future settlements are called. Any village can be renamed
+  # by hand at any time from the mayor's menu.
+  #
+  # Groups are matched against the biome name by substring, so variants a Minecraft update
+  # adds (snowy_taiga, windswept_savanna, sparse_jungle) fall into the right group on their
+  # own. Delete a group to fall back to the built-in words for it.
+  names:
+    desert:
+      first:  [Sun, Dust, Amber, Scorch, Mirage, Gold, Ash, Dune]
+      second: [reach, hollow, rest, gate, spire, crest, haven, watch]
+    snow:
+      first:  [Frost, White, Pale, Winter, Ice, Still, Hollow, North]
+      second: [hold, fell, reach, barrow, crown, watch, rest, mere]
+    savanna:
+      first:  [Acacia, Ember, Wide, Long, Bright, Dry, Sun, Red]
+      second: [plain, run, field, stead, ridge, reach, gate, vale]
+    taiga:
+      first:  [Pine, Elk, Deep, Green, Wolf, Moss, Fern, Grey]
+      second: [wood, hollow, lodge, fall, grove, hearth, marsh, burn]
+    jungle:
+      first:  [Vine, Emerald, Deep, Cloud, Parrot, Fern, Green, Rain]
+      second: [canopy, hollow, temple, reach, shade, spring, root, veil]
+    swamp:
+      first:  [Mire, Black, Willow, Fog, Reed, Damp, Toad, Murk]
+      second: [water, marsh, hollow, bank, fen, rest, crossing, bog]
+    # Anything that matches none of the above.
+    plains:
+      first:  [Green, Oak, Fair, Mill, Bright, Wheat, Stone, River]
+      second: [field, brook, stead, ford, meadow, hill, bridge, crossing]
+
+  # ── Graves ───────────────────────────────────────────────────────────────
+  # A villager that dies without a cross gets a headstone where it fell, carrying its name,
+  # its parents and what killed it. A cross means it can be revived, so those are skipped -
+  # a headstone over somebody who is coming back is a lie the world keeps telling.
+  #
+  # Headstones are display entities, not blocks: they can be removed cleanly, never get in
+  # anybody's way, and cost the world nothing. The text is in configs/messages/system.yml.
+  graves:
+    enabled: true
+
+  # ── Refining ─────────────────────────────────────────────────────────────
+  # Workers turn what they gather into what the settlement can build with.
+  #
+  # This is what makes building possible at all. Gathering alone produces logs, stone, sand
+  # and ore, while even the simplest blueprint wants planks, stairs, a door and glass — so
+  # without these recipes the stores fill with raw goods nobody can spend.
+  #
+  #   result       what comes out.
+  #   amount       how many, per run.
+  #   ingredients  what goes in, and how many of each.
+  #   role         which trade does the work. Omit it and any working villager will.
+  #                One of: lumberjack, miner, blacksmith, food-supplier, fisher,
+  #                weaver, tanner, scholar, apothecary.
+  #
+  # Each recipe runs at most ONCE per economy round, and only while the settlement holds at
+  # least three times an ingredient — so raw goods are refined steadily out of a surplus
+  # rather than the whole stock being converted the moment it crosses the line.
+  crafting:
+    recipes:
+      # Woodwork
+      - result: OAK_PLANKS
+        amount: 4
+        role: lumberjack
+        ingredients: {OAK_LOG: 1}
+      - result: OAK_STAIRS
+        amount: 4
+        role: lumberjack
+        ingredients: {OAK_PLANKS: 6}
+      - result: OAK_DOOR
+        amount: 3
+        role: lumberjack
+        ingredients: {OAK_PLANKS: 6}
+      - result: OAK_FENCE
+        amount: 3
+        role: lumberjack
+        ingredients: {OAK_PLANKS: 4, STICK: 2}
+
+      # Stonework
+      - result: STONE_BRICKS
+        amount: 4
+        role: miner
+        ingredients: {STONE: 4}
+      - result: COBBLESTONE_STAIRS
+        amount: 4
+        role: miner
+        ingredients: {COBBLESTONE: 6}
+      - result: COBBLESTONE_WALL
+        amount: 6
+        role: miner
+        ingredients: {COBBLESTONE: 6}
+      # Sand is fired into glass, so the miner needs fuel as well as sand.
+      - result: GLASS
+        amount: 1
+        role: miner
+        ingredients: {SAND: 1, COAL: 1}
+      - result: GLASS_PANE
+        amount: 16
+        role: miner
+        ingredients: {GLASS: 6}
+
+      # Metalwork and light
+      - result: IRON_INGOT
+        amount: 1
+        role: blacksmith
+        ingredients: {RAW_IRON: 1, COAL: 1}
+      - result: TORCH
+        amount: 4
+        role: blacksmith
+        ingredients: {COAL: 1, STICK: 1}
+
+  # ── Building commissions ─────────────────────────────────────────────────
+  # Buildings are defined in configs/blueprints.yml and paid for out of the settlement's
+  # stores. Players need standing with the mayor first — operators, and anyone with the
+  # permission realisticvillagers.village.bypass, do not.
+  build:
+    # Refuse to place a building on or beside one that already exists.
+    #
+    # Worth keeping on for more than tidiness: the scanner finds buildings by walking
+    # connected blocks, so two that share a wall are read as a single building from then
+    # on — by the map, by the settlement's own bounds, and by this check itself.
+    collision: true
+    # How much clear ground to insist on around a new building, in blocks. 1 stops walls
+    # touching; 2 leaves a gap you can walk down. 0 allows buildings to touch.
+    clearance: 2
+    # Empty chests, barrels and furnaces as the building goes up.
+    #
+    # A saved building carries whatever was in its containers, so without this a house recorded
+    # with a full chest is an item duplicator that runs as often as the settlement can pay for
+    # the walls. Turn it off only if your buildings' contents are part of how they work.
+    empty-containers: true
+    # Refuse to raise a building outside the settlement paying for it. The stores belong to the
+    # village, so what they buy should stand in it.
+    inside-village-only: true
+    # Each player only gets the buildings they discovered themselves.
+    #
+    # Finding a village is the interesting part, and a shared list hands everyone the reward
+    # for it the moment the first player walks in - on a busy server the list would be
+    # complete within a day and finding anything would stop mattering.
+    #
+    # It also settles who may rename what: you can rename what you found, because nobody else
+    # can see it, and you cannot rename what the server provides, because it is shared.
+    #
+    # Set to false for one shared list, recorded the first time anybody arrives.
+    personal-discovery: true
+    # How fast a building goes up, in blocks a second, before the mayor's programme is applied.
+    # A building's total time is its block count divided by this, so lowering it makes raising
+    # anything a job the settlement visibly labours over.
+    blocks-per-second: 4
+
+    # Buildings are drawn once and dressed in whatever the local land is built from, so an oak
+    # cottage comes out in sandstone in a desert and in spruce in a taiga. Only the materials
+    # change — the layout, the doors and the windows stay where the blueprint put them.
+    #
+    # The cost changes with them: a settlement asked for sandstone is charged for sandstone.
+    #
+    # Groups are the same ones village names use, matched against the biome by substring.
+    # Delete a group to have blueprints built exactly as they are written.
+    biome-styles:
+      desert:
+        OAK_PLANKS: SMOOTH_SANDSTONE
+        OAK_LOG: CUT_SANDSTONE
+        OAK_STAIRS: SANDSTONE_STAIRS
+        OAK_DOOR: ACACIA_DOOR
+        OAK_FENCE: ACACIA_FENCE
+        COBBLESTONE: SANDSTONE
+        COBBLESTONE_STAIRS: SANDSTONE_STAIRS
+        COBBLESTONE_WALL: SANDSTONE_WALL
+        STONE_BRICKS: CUT_SANDSTONE
+      savanna:
+        OAK_PLANKS: ACACIA_PLANKS
+        OAK_LOG: ACACIA_LOG
+        OAK_STAIRS: ACACIA_STAIRS
+        OAK_DOOR: ACACIA_DOOR
+        OAK_FENCE: ACACIA_FENCE
+      taiga:
+        OAK_PLANKS: SPRUCE_PLANKS
+        OAK_LOG: SPRUCE_LOG
+        OAK_STAIRS: SPRUCE_STAIRS
+        OAK_DOOR: SPRUCE_DOOR
+        OAK_FENCE: SPRUCE_FENCE
+      snow:
+        OAK_PLANKS: SPRUCE_PLANKS
+        OAK_LOG: SPRUCE_LOG
+        OAK_STAIRS: SPRUCE_STAIRS
+        OAK_DOOR: SPRUCE_DOOR
+        OAK_FENCE: SPRUCE_FENCE
+        COBBLESTONE: STONE_BRICKS
+      jungle:
+        OAK_PLANKS: JUNGLE_PLANKS
+        OAK_LOG: JUNGLE_LOG
+        OAK_STAIRS: JUNGLE_STAIRS
+        OAK_DOOR: JUNGLE_DOOR
+        OAK_FENCE: JUNGLE_FENCE
+      swamp:
+        OAK_PLANKS: MANGROVE_PLANKS
+        OAK_LOG: MANGROVE_LOG
+        OAK_STAIRS: MANGROVE_STAIRS
+        OAK_DOOR: MANGROVE_DOOR
+        OAK_FENCE: MANGROVE_FENCE
+
+  # ── Real harvesting ──────────────────────────────────────────────────────
+  # Unlike the economy above, this changes actual blocks in the world:
+  #
+  #   Fletchers (lumberjacks) fell a whole nearby tree and plant a sapling of the same
+  #   wood where the trunk stood, so the woods around a settlement thin out and grow back.
+  #
+  #   Farmers, butchers and fishermen cut the head off a nearby cactus and leave the stump
+  #   rooted, so it regrows on its own. Cactus is what camels are led with, so a desert
+  #   settlement would otherwise strip its own supply.
+  #
+  # Set enabled to false if you would rather villagers never touched the terrain.
+  harvest:
+    enabled: true
+    # How often (in seconds) a harvesting round runs. Kept slower than the economy round
+    # because each one can remove a whole tree.
+    interval: 45
 
 # Here you can allow procreation between villagers of the same sex, procreation between family members and also allow "cheating" of villagers,
 # i.e., allow villagers to procreate with other villagers even if they are married.
@@ -622,7 +963,7 @@ increase-baby-scale: true
 # automatically assigned the 'default' gender below (male or female).
 # The 'default' sub-option has no effect when 'enabled' is true (players choose for themselves).
 gender-selection:
-  enabled: false
+  enabled: true
   default: male
 
 # Regionality system: assigns names and messages based on villager biome type.

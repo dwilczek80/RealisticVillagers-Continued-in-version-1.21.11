@@ -1821,7 +1821,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
 
             for (Entity entity : level.getEntities(this, box)) {
                 if (entity.isRemoved() || !(entity instanceof ThrownTrident trident)) continue;
-                if (trident.shakeTime > 0 || (!trident.inGround && !trident.isNoPhysics())) continue;
+                if (shakeTimeOf(trident) > 0 || (!isStuckInGround(trident) && !trident.isNoPhysics())) continue;
 
                 ItemStack tridentItem = trident.tridentItem;
                 if (!tridentItem.isEmpty()
@@ -2277,4 +2277,46 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public boolean isInteracting() {
         return interactingWith != null && interactType != null;
     }
+
+    /**
+     * Reads {@link AbstractArrow}'s shake timer.
+     * <p>
+     * Reflective for the same reason as the pickup stack: fields the Spigot mappings expose can
+     * be private on the running server, and this sits in a per-tick path where a direct access
+     * throws {@link IllegalAccessError} over and over.
+     */
+    private static final MethodHandle SHAKE_TIME = Reflection.getFieldGetter(AbstractArrow.class, "shakeTime");
+
+    private static int shakeTimeOf(AbstractArrow arrow) {
+        if (SHAKE_TIME == null) return 0;
+
+        try {
+            Object value = SHAKE_TIME.invoke(arrow);
+            return value instanceof Integer time ? time : 0;
+        } catch (Throwable throwable) {
+            // Treat it as settled; the worst case is picking a trident up a moment early.
+            return 0;
+        }
+    }
+
+
+    /**
+     * Reads {@link AbstractArrow}'s in-ground flag.
+     * <p>
+     * This version has no accessor for it, and the field can be private on the running server,
+     * so it is read reflectively like the other projectile internals.
+     */
+    private static final MethodHandle IN_GROUND = Reflection.getFieldGetter(AbstractArrow.class, "inGround");
+
+    private static boolean isStuckInGround(AbstractArrow arrow) {
+        if (IN_GROUND == null) return false;
+
+        try {
+            Object value = IN_GROUND.invoke(arrow);
+            return value instanceof Boolean stuck && stuck;
+        } catch (Throwable throwable) {
+            return false;
+        }
+    }
+
 }

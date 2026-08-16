@@ -78,6 +78,9 @@ public enum Config {
     REPUTATION_REQUIRED_TO_MARRY("reputation-required-to-marry"),
     REPUTATION_REQUIRED_TO_PROCREATE("reputation-required-to-procreate"),
 
+    NAMETAGS_ONLY_WHEN_LOOKING("nametags.only-when-looking"),
+    NAMETAGS_LOOK_RANGE("nametags.look-range"),
+
     ANNOYING_METER_ENABLED("annoying-meter.enabled"),
     ANNOYING_METER_IGNORE_FAMILY_MEMBERS("annoying-meter.ignore-family-members"),
     ANNOYING_METER_CLEAR_AFTER_SUCCESS_INTERACTION("annoying-meter.clear-after-success-interaction"),
@@ -85,6 +88,41 @@ public enum Config {
     ANNOYING_METER_TIMEFRAME("annoying-meter.timeframe"),
     ANNOYING_METER_REPUTATION_LOSS("annoying-meter.reputation-loss"),
     ANNOYING_METER_ANGRY_PARTICLES("annoying-meter.angry-particles"),
+
+    VILLAGE_ENABLED("village.enabled"),
+    VILLAGE_DEFAULT_RADIUS("village.default-radius"),
+    VILLAGE_MAYOR_REPUTATION_DIVISOR("village.mayor-reputation-divisor"),
+    VILLAGE_SAVE_INTERVAL("village.save-interval"),
+    VILLAGE_VERTICAL_RANGE("village.vertical-range"),
+    VILLAGE_RESIDENT_CACHE_MILLIS("village.resident-cache-millis"),
+    VILLAGE_MAYOR_REPUTATION_TO_COMMISSION("village.mayor.reputation-required-to-commission"),
+    VILLAGE_MAYOR_REQUIRE_FAMILY("village.mayor.require-family"),
+    VILLAGE_MAYOR_HEAD_BLOCK("village.mayor.head-block"),
+
+    VILLAGE_ELECTION_ENABLED("village.election.enabled"),
+    VILLAGE_ELECTION_DURATION("village.election.duration"),
+    VILLAGE_ELECTION_CANDIDATES("village.election.candidates"),
+    VILLAGE_ELECTION_PLAYER_VOTE_WEIGHT("village.election.player-vote-weight"),
+    VILLAGE_ELECTION_VILLAGER_VOTE_WEIGHT("village.election.villager-vote-weight"),
+    VILLAGE_ELECTION_CHECK_INTERVAL("village.election.check-interval"),
+
+    VILLAGE_ECONOMY_ENABLED("village.economy.enabled"),
+    VILLAGE_ECONOMY_INTERVAL("village.economy.interval"),
+    VILLAGE_ECONOMY_CHANCE("village.economy.chance"),
+    VILLAGE_ECONOMY_MIN_AMOUNT("village.economy.min-amount"),
+    VILLAGE_ECONOMY_MAX_AMOUNT("village.economy.max-amount"),
+
+    VILLAGE_BUILD_COLLISION("village.build.collision"),
+    VILLAGE_BUILD_CLEARANCE("village.build.clearance"),
+    VILLAGE_BUILD_EMPTY_CONTAINERS("village.build.empty-containers"),
+    VILLAGE_BUILD_INSIDE_ONLY("village.build.inside-village-only"),
+    VILLAGE_BUILD_PERSONAL_DISCOVERY("village.build.personal-discovery"),
+    VILLAGE_BUILD_BLOCKS_PER_SECOND("village.build.blocks-per-second"),
+
+    VILLAGE_GRAVES_ENABLED("village.graves.enabled"),
+
+    VILLAGE_HARVEST_ENABLED("village.harvest.enabled"),
+    VILLAGE_HARVEST_INTERVAL("village.harvest.interval"),
 
     IGNORE_SEX_WHEN_PROCREATING("villager-farm.ignore-sex-when-procreating"),
     ALLOW_PARTNER_CHEATING("villager-farm.allow-partner-cheating"),
@@ -252,6 +290,17 @@ public enum Config {
 
     public boolean asBool() {
         return getFileConfig().getBoolean(path);
+    }
+
+    /**
+     * Reads a flag, falling back to {@code defaultValue} when the key isn't in the file.
+     * <p>
+     * Matters for options added after a server's config was written: {@link #asBool()} reports a
+     * missing key as {@code false}, which turns a new feature off on every existing install and
+     * looks exactly like the feature not working.
+     */
+    public boolean asBool(boolean defaultValue) {
+        return getFileConfig().getBoolean(path, defaultValue);
     }
 
     public int asInt() {

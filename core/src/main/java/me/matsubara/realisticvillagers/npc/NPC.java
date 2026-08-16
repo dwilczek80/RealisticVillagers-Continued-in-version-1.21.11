@@ -74,6 +74,17 @@ public class NPC {
     public void spawnNametags(Player player, boolean shouldSpawn) {
         if (!ENABLED) return;
 
+        // Names shown on look only: take the one down rather than trying to draw it quietly.
+        //
+        // Passing shouldSpawn=false was not the same thing as hiding — the entity was still
+        // created — which is why the name stayed up. Removing it outright is what
+        // disable-nametags does, and that route demonstrably works.
+        var hover = plugin.getHoverNametagTask();
+        if (hover != null && hover.isHidingBy(player, npc)) {
+            hideNametags(player);
+            return;
+        }
+
         int itemId = spawnDisplayEntity(player, false, shouldSpawn);
         if (itemId == IGNORE) return;
 
@@ -164,6 +175,11 @@ public class NPC {
     private int spawnDisplayEntity(Player player, boolean block, boolean shouldSpawn) {
         if (!(npc instanceof Nameable nameable)) return IGNORE;
         if (Config.DISABLE_NAMETAGS.asBool()) return IGNORE;
+
+        // The same door "disable-nametags" goes through, so a name that should be hidden is
+        // never built in the first place — whichever of the several spawn paths asked for it.
+        var hoverTask = plugin.getHoverNametagTask();
+        if (hoverTask != null && hoverTask.isHidingBy(player, npc)) return IGNORE;
         if (block && !Config.CUSTOM_NAME_SHOW_JOB_BLOCK.asBool()) return NO_BLOCK;
 
         LivingEntity bukkit = npc.bukkit();
@@ -180,7 +196,11 @@ public class NPC {
 
         if (block) {
             BlockData blockData;
-            if (bukkit instanceof Villager villager && !npc.is(Villager.Profession.NONE, Villager.Profession.NITWIT)) {
+            if (bukkit instanceof Villager villager && isMayor(villager)) {
+                // The mayor has no workstation, so it gets a badge of office instead — without
+                // this it would be the only notable villager showing nothing above its head.
+                blockData = getMayorBlockData();
+            } else if (bukkit instanceof Villager villager && !npc.is(Villager.Profession.NONE, Villager.Profession.NITWIT)) {
                 Material material = SkinGUI.PROFESSION_ICON.get(villager.getProfession().name());
                 blockData = createBlockData(villager, material);
             } else {
@@ -273,6 +293,21 @@ public class NPC {
         }
 
         return builder.toString();
+    }
+
+    private boolean isMayor(@NotNull Villager villager) {
+        var villages = plugin.getVillageManager();
+        return villages != null && villages.isMayorOfAnyVillage(villager.getUniqueId());
+    }
+
+    /** The block shown over the mayor's head; configurable, emerald block by default. */
+    private @NotNull BlockData getMayorBlockData() {
+        String name = Config.VILLAGE_MAYOR_HEAD_BLOCK.asString("EMERALD_BLOCK");
+
+        Material material = name != null ? Material.matchMaterial(name) : null;
+        if (material == null || !material.isBlock()) material = Material.EMERALD_BLOCK;
+
+        return material.createBlockData();
     }
 
     private @NotNull BlockData createBlockData(Villager villager, Material material) {

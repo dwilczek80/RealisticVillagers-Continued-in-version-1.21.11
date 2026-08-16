@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
 import me.matsubara.realisticvillagers.event.VillagerRiptideEvent;
 import me.matsubara.realisticvillagers.files.Config;
+import me.matsubara.realisticvillagers.util.Reflection;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -36,7 +37,49 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
+import java.lang.invoke.MethodHandle;
 public class TridentAttack extends Behavior<Villager> {
+
+    /**
+     * Sets {@link AbstractArrow}'s pickup stack.
+     * <p>
+     * The field is private on some server builds (Purpur among them) even though the Spigot
+     * mappings this compiles against expose it, so assigning it directly throws
+     * {@link IllegalAccessError} the moment a villager throws a trident.
+     */
+    private static final MethodHandle PICKUP_ITEM_STACK =
+            Reflection.getFieldSetter(AbstractArrow.class, "pickupItemStack");
+
+
+    /**
+     * Sets {@link AbstractArrow}'s pickup mode.
+     * <p>
+     * Written reflectively for the same reason as {@code pickupItemStack}: fields the Spigot
+     * mappings expose are private on some server builds, and a direct assignment then throws
+     * {@link IllegalAccessError} at runtime rather than failing to compile.
+     */
+    private static final MethodHandle ARROW_PICKUP = Reflection.getFieldSetter(AbstractArrow.class, "pickup");
+
+    private static void setArrowPickup(AbstractArrow arrow, AbstractArrow.Pickup pickup) {
+        if (ARROW_PICKUP == null) return;
+
+        try {
+            ARROW_PICKUP.invoke(arrow, pickup);
+        } catch (Throwable throwable) {
+            // Only controls whether the projectile can be picked back up.
+        }
+    }
+
+    private static void setPickupItemStack(@NotNull AbstractArrow arrow, ItemStack stack) {
+        if (PICKUP_ITEM_STACK == null) return;
+
+        try {
+            PICKUP_ITEM_STACK.invoke(arrow, stack);
+        } catch (Throwable throwable) {
+            // Only affects what the trident drops when picked up; never worth failing the throw.
+        }
+    }
+
 
     private int delay;
     private TridentState state;
@@ -155,13 +198,13 @@ public class TridentAttack extends Behavior<Villager> {
         if (riptide == 0) {
             ThrownTrident trident = new ThrownTrident(npc.level(), npc, weapon);
             trident.shootFromRotation(npc, npc.getXRot(), npc.getYRot(), 0.0f, 2.5f + (float) riptide * 0.5f, 1.0f);
-            trident.pickup = AbstractArrow.Pickup.CREATIVE_ONLY;
+            setArrowPickup(trident, AbstractArrow.Pickup.CREATIVE_ONLY);
 
             if (!npc.level().addFreshEntity(trident)) return;
 
             weapon.hurtAndBreak(1, npc, hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
 
-            trident.pickupItemStack = weapon.copy();
+            setPickupItemStack(trident, weapon.copy());
             npc.level().playSound(null, trident, SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.0f, 1.0f);
             npc.setItemInHand(hand, ItemStack.EMPTY);
             npc.setThrownTrident(trident);

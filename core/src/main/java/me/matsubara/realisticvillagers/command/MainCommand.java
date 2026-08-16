@@ -92,6 +92,16 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         Messages messages = plugin.getMessages();
         VillagerTracker tracker = plugin.getTracker();
 
+        // Carried by the clickable line in the radar's building info; never typed by hand.
+        //
+        // Handled ahead of the guard below, which caps sub-commands at five arguments — this one
+        // needs six numbers for the two corners of a box. Deliberately absent from COMMAND_ARGS
+        // and the help text, so it stays out of tab-completion and out of the way.
+        if (args.length == 7 && args[0].equalsIgnoreCase("outline")) {
+            handleOutline(sender, args);
+            return true;
+        }
+
         String subCommand;
         boolean noArgs = args.length == 0;
         if (noArgs || args.length > 5 || !COMMAND_ARGS.contains((subCommand = args[0]).toLowerCase(Locale.ROOT))) {
@@ -229,6 +239,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
 
         boolean skinsDisabled = Config.DISABLE_SKINS.asBool();
         boolean nametagsDisabled = Config.DISABLE_NAMETAGS.asBool();
+        boolean nametagsOnLook = Config.NAMETAGS_ONLY_WHEN_LOOKING.asBool(false);
         boolean reviveEnabled = Config.REVIVE_ENABLED.asBool();
         boolean tameHorsesEnabled = Config.TAME_HORSES.asBool();
 
@@ -297,6 +308,17 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                         if (!tracker.isInvalid(bukkit)) tracker.refreshNPCSkin(bukkit, false);
                     });
 
+            // Same treatment for names shown on look only, and for the same reason: whether the
+            // profile carries a name is decided when the NPC is spawned, so changing the setting
+            // means nothing until each one is spawned again.
+            handleChangedOption(
+                    nametagsOnLook,
+                    Config.NAMETAGS_ONLY_WHEN_LOOKING.asBool(false),
+                    (npc, state) -> {
+                        LivingEntity bukkit = npc.bukkit();
+                        if (!tracker.isInvalid(bukkit)) tracker.refreshNPCSkin(bukkit, false);
+                    });
+
             handleChangedOption(
                     tameHorsesEnabled,
                     Config.TAME_HORSES.asBool(),
@@ -309,6 +331,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             // Update nametag from config.
             handleChangedOption(false, true, (npc, state) -> plugin.getTracker().getNPC(npc.bukkit().getEntityId())
                     .ifPresent(temp -> temp.getSeeingPlayers().forEach(temp::refreshNametags)));
+
+            // Refreshing above is what applies a changed nametags.only-when-looking; saying so is
+            // what tells whoever just edited config.yml that the edit has actually landed.
+            var hover = plugin.getHoverNametagTask();
+            if (hover != null) hover.announce();
 
             handleListeners(reviveEnabled, Config.REVIVE_ENABLED.asBool(), reviveManager);
         }));
@@ -518,6 +545,42 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         return pages == 0 ? 1 : pages;
     }
 
+    /**
+     * Outlines a building in the world, driven by the clickable line the radar prints.
+     * <p>
+     * Bounds are passed in the click rather than looked up again so the outline shows exactly the
+     * box that was reported — which is the whole point of the check.
+     */
+    private void handleOutline(org.bukkit.command.CommandSender sender, String[] args) {
+        if (!(sender instanceof org.bukkit.entity.Player player)) return;
+
+        int minX;
+        int minZ;
+        int maxX;
+        int maxZ;
+        int minY;
+        int maxY;
+        try {
+            minX = Integer.parseInt(args[1]);
+            minZ = Integer.parseInt(args[2]);
+            maxX = Integer.parseInt(args[3]);
+            maxZ = Integer.parseInt(args[4]);
+            minY = Integer.parseInt(args[5]);
+            maxY = Integer.parseInt(args[6]);
+        } catch (NumberFormatException exception) {
+            return;
+        }
+
+        var borders = plugin.getBorderVisualizer();
+        if (borders == null) return;
+
+        borders.outlineBuilding(
+                player,
+                new me.matsubara.realisticvillagers.village.VillageBuildings.Footprint(
+                        minX, minZ, maxX, maxZ, minY, maxY, 0, 0, java.util.Set.of()),
+                player.getWorld());
+    }
+
     private void handleChangedOption(boolean previous, boolean current, BiConsumer<IVillagerNPC, Boolean> consumer) {
         if (previous == current) return;
 
@@ -527,4 +590,6 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             }
         }
     }
+
+
 }

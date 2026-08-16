@@ -1836,9 +1836,9 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
 
             for (Entity entity : level().getEntities(this, box)) {
                 if (entity.isRemoved() || !(entity instanceof ThrownTrident trident)) continue;
-                if (trident.shakeTime > 0 || (!trident.onGround && !trident.isNoPhysics())) continue;
+                if (shakeTimeOf(trident) > 0 || (!trident.onGround() && !trident.isNoPhysics())) continue;
 
-                ItemStack tridentItem = trident.pickupItemStack;
+                ItemStack tridentItem = pickupItemStackOf(trident);
                 if (!tridentItem.isEmpty()
                         && is(trident.getOwner())
                         && getInventory().canAddItem(tridentItem)) {
@@ -2306,4 +2306,48 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     public boolean isInteracting() {
         return interactingWith != null && interactType != null;
     }
+
+    /**
+     * Reads {@link AbstractArrow}'s pickup stack.
+     * <p>
+     * Reflective for the same reason as the writes: fields the Spigot mappings expose are
+     * private on some server builds, and a direct access throws {@link IllegalAccessError} at
+     * runtime instead of failing to compile.
+     */
+    private static final MethodHandle PICKUP_ITEM_STACK_GET =
+            Reflection.getFieldGetter(AbstractArrow.class, "pickupItemStack");
+
+    private static @NotNull ItemStack pickupItemStackOf(AbstractArrow arrow) {
+        if (PICKUP_ITEM_STACK_GET == null) return ItemStack.EMPTY;
+
+        try {
+            Object value = PICKUP_ITEM_STACK_GET.invoke(arrow);
+            return value instanceof ItemStack stack ? stack : ItemStack.EMPTY;
+        } catch (Throwable throwable) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+
+    /**
+     * Reads {@link AbstractArrow}'s shake timer.
+     * <p>
+     * Reflective for the same reason as the pickup stack: fields the Spigot mappings expose can
+     * be private on the running server, and this sits in a per-tick path where a direct access
+     * throws {@link IllegalAccessError} over and over.
+     */
+    private static final MethodHandle SHAKE_TIME = Reflection.getFieldGetter(AbstractArrow.class, "shakeTime");
+
+    private static int shakeTimeOf(AbstractArrow arrow) {
+        if (SHAKE_TIME == null) return 0;
+
+        try {
+            Object value = SHAKE_TIME.invoke(arrow);
+            return value instanceof Integer time ? time : 0;
+        } catch (Throwable throwable) {
+            // Treat it as settled; the worst case is picking a trident up a moment early.
+            return 0;
+        }
+    }
+
 }

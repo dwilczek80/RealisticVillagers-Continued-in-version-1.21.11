@@ -37,7 +37,7 @@ public final class Messages {
     private final RealisticVillagers plugin;
 
     /** System/admin messages (configs/messages/system.yml) — command feedback, error notices, etc. */
-    private @Setter FileConfiguration configuration;
+    private @Setter @Getter FileConfiguration configuration;
 
     /** Global fallback dialogue (configs/messages/default.yml) — used when regional file has no entry. */
     private FileConfiguration defaultDialogueConfig;

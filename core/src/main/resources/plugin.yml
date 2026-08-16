@@ -28,6 +28,9 @@ commands:
     usage: /gender <male|female>
 
 permissions:
+  realisticvillagers.village.bypass:
+    description: Commission settlement buildings without earning standing with the mayor first.
+    default: op
   realisticvillagers.gender:
     description: Allows using /gender to set the gender of a villager you're looking at.
     default: op

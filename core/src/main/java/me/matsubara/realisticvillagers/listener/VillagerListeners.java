@@ -1,6 +1,10 @@
 package me.matsubara.realisticvillagers.listener;
 
 
+import me.matsubara.realisticvillagers.gui.types.MayorGUI;
+import me.matsubara.realisticvillagers.village.MayorManager;
+import me.matsubara.realisticvillagers.village.Village;
+import me.matsubara.realisticvillagers.village.VillageManager;
 import com.cryptomorin.xseries.reflection.XReflection;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
@@ -381,6 +385,10 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
 
             if (plugin.getAnnoyingManager().isVillagerAnnoyed(player, npc)) return;
 
+            // The mayor is not an ordinary tradesman: it gets the settlement screen instead of
+            // the usual villager menu, and freezes so it doesn't wander off mid-conversation.
+            if (openMayorScreen(player, npc, villager)) return;
+
             // Open hologram menu or fall back to chest GUI.
             if (hologramEnabled()) {
                 plugin.getHologramManager().openMenu(player, npc);
@@ -470,6 +478,43 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
 
     private boolean hologramEnabled() {
         return HOLOGRAM_SUPPORTED && plugin.getHologramManager().isMenuEnabled();
+    }
+
+    /**
+     * Opens the settlement screen if this villager is its village's mayor.
+     *
+     * @return {@code true} when the mayor screen was opened, meaning the caller must not go on
+     * to open the ordinary villager menu.
+     */
+    private boolean openMayorScreen(Player player, IVillagerNPC npc, Villager villager) {
+        VillageManager villages = plugin.getVillageManager();
+        MayorManager mayors = plugin.getMayorManager();
+        if (villages == null || mayors == null || !villages.isEnabled()) return false;
+
+        // Ask the cheap, direct question first: is this villager a mayor anywhere? Resolving its
+        // village can momentarily fail (meeting-point memory still settling after a chunk load),
+        // and when it did the mayor fell through to the ordinary villager menu.
+        if (!villages.isMayorOfAnyVillage(villager.getUniqueId())) return false;
+
+        Village village = villages.getVillage(villager);
+        if (village == null) {
+            // Known to be a mayor but its village isn't resolvable this instant — swallow the
+            // interaction rather than opening the wrong screen.
+            return true;
+        }
+
+        // Prefer the hologram screen; the chest GUI is the fallback for servers that turned the
+        // hologram menu off. Both carry a map — the hologram one drawn in the world, the chest
+        // one as a grid of tiles — so switching menus costs the settlement view nothing.
+        if (hologramEnabled()) {
+            plugin.getHologramManager().openMenu(player, npc, true);
+        } else {
+            npc.stayInPlace();
+            player.openInventory(new MayorGUI(plugin, village, player).getInventory());
+        }
+
+        npc.setInteractingWithAndType(player.getUniqueId(), InteractType.GUI);
+        return true;
     }
 
     private boolean preventChangeSkinItemUse(@Nullable Cancellable cancellable, ItemStack item) {

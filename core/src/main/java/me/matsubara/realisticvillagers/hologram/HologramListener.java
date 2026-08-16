@@ -36,7 +36,12 @@ public final class HologramListener implements Listener {
         if (menu == null) return;
 
         MenuAction menuAction = menu.getHoveredAction();
-        if (menuAction == null) return;
+        if (menuAction == null) {
+            // Nothing in the text menu was aimed at — the click may still land on a building
+            // drawn on the radar panel.
+            if (menu.clickBuilding()) event.setCancelled(true);
+            return;
+        }
 
         event.setCancelled(true);
         menu.handleAction(menuAction);

@@ -122,3 +122,63 @@ player-gender:
 # %time% - the waiting time to have another baby (@cooldown).
 procreate:
   cooldown: "&cYou must wait %time% to have another baby."
+
+# ── Settlement system ──────────────────────────────────────────────────────
+# Shown only when the settlement system is on (village.enabled in config.yml).
+village:
+  vote-cast: "&aYour vote has been counted."
+  already-voted: "&cYou have already cast your vote."
+  vote-failed: "&cYour vote could not be counted."
+  election-ended: "&cThat election has already ended."
+  # Shown when someone tries to break a village bell while its election is running.
+  bell-locked: "&cYou can't break this bell while an election is being held here."
+
+  # Text on a villager's headstone. Use \n for a line break.
+  # %name% the villager, %parents% "Child of X & Y" (empty when unknown), %cause% how it died.
+  # A line whose placeholder comes out empty is dropped rather than left blank.
+  grave: "&f%name%\n&7%parents%\n&8%cause%"
+
+  # Clearing a grave: sneak and right-click the headstone.
+  grave-remove-hint: "&7Sneak and right-click to clear this grave."
+  grave-removed: "&7The grave has been cleared."
+  grave-denied: "&cThis is not your grave to clear."
+
+  # Boss bar shown for a few seconds when crossing a settlement's edge.
+  # %village% is the settlement's name. Leave a line empty to switch that bar off.
+  entered: "&aEntering &f%village%"
+  left: "&7Leaving &f%village%"
+  # Boss bar shown to everyone inside the settlement when its mayor dies.
+  mayor-died: "&cThe mayor of &f%village% &chas died."
+  # Boss bar shown to everyone inside the settlement when voting opens.
+  election-started: "&e&lELECTION &fopened in &e%village%&f — click the bell to vote."
+
+  # ── Building commissions ─────────────────────────────────────────────────
+  # Shown while lining up a building. %building% is its name.
+  preview-help: "&eLining up &f%building%&e — &escroll&e to move it out, &aright-click or swap hands (F)&e to place, &asneak + right-click&e to turn, &cleft-click&e to cancel."
+  # Shown after the first right-click, once the ghost has stopped following the player.
+  commission-pinned: "&ePlaced. &aRight-click or swap hands&e to build it, &asneak + right-click&e to turn it, &eleft-click&e to move it again."
+  commission-unpinned: "&7Loose again — it follows you."
+
+  # ── Recording a village you have found ───────────────────────────────────
+  # %count% buildings saved, %region% the kind of country they were found in.
+  recorded: "&aRecorded &f%count% &abuilding(s) for &f%region% &avillages."
+  recorded-none: "&7Nothing here was worth recording — the buildings are too small, or already saved."
+  borders-on: "&aThe settlement's border is now visible."
+  borders-off: "&7Border hidden."
+  commission-started: "&aThe settlement has started building."
+  commission-cancelled: "&7Building cancelled."
+  commission-short: "&cThe settlement's stores are short."
+  commission-denied: "&cThe mayor won't take your plans."
+  already-building: "&cThis settlement is already building something."
+  # Shown when the ghost is red: it would touch or overlap an existing building.
+  commission-blocked: "&cIt won't fit there — too close to another building, or outside the village."
+  # Shown when walking into a village whose buildings you have not seen before.
+  discovered: "&aYou have learned &f%count% &abuilding(s) from &f%village%&a."
+  blueprint-shared: "&7This building came with the server, so its name is not yours to change."
+  blueprint-renamed: "&aRenamed."
+  blueprint-rename-failed: "&cThat name won't do, or is already taken."
+
+  # Moving goods in and out of the settlement's stores.
+  storage-deposited: "&aGiven to the settlement's stores."
+  storage-taken: "&aTaken from the settlement's stores."
+  storage-denied: "&cYou need standing with the mayor to take from the stores."

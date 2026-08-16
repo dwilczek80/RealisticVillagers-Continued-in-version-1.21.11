@@ -44,6 +44,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
 
@@ -330,7 +332,10 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
     }
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static boolean warnedAboutFromData;
+
+    /** Resolved once, lazily: the server's own block-state → block-data factory. */
+    private static Method fromData;
+    private static boolean fromDataResolved;
 
     private static boolean isEntityChangeBlockEventCancelled(@NotNull Entity entity, @NotNull BlockPos position, BlockState newBlock) {
         // Fixes "boolean cannot be dereferenced".
@@ -349,12 +354,47 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
         try {
             return CraftBlockData.fromData(newBlock);
         } catch (NoSuchMethodError error) {
-            if (!warnedAboutFromData) {
-                warnedAboutFromData = true;
-                LOGGER.warn("CraftBlockData#fromData(BlockState) is missing on this server build (CraftBukkit internals changed); "
-                        + "farmland harvesting will keep working, but EntityChangeBlockEvent won't fire for it.", error);
+            // The plugin is compiled against a Spigot snapshot whose CraftBlockData#fromData
+            // returns CraftBlockData, while this server's returns something else — the JVM
+            // matches on return type too, so the call misses. Find it by shape instead.
+            return viaReflection(newBlock);
+        }
+    }
+
+    private static @Nullable BlockData viaReflection(BlockState newBlock) {
+        if (!fromDataResolved) {
+            fromDataResolved = true;
+            fromData = findFromData();
+
+            if (fromData == null) {
+                LOGGER.warn("Couldn't find any CraftBlockData factory for a block state on this server build; "
+                        + "farmland harvesting keeps working, but EntityChangeBlockEvent won't fire for it.");
             }
+        }
+
+        if (fromData == null) return null;
+
+        try {
+            Object result = fromData.invoke(null, newBlock);
+            return result instanceof BlockData data ? data : null;
+        } catch (ReflectiveOperationException exception) {
             return null;
         }
+    }
+
+    /**
+     * Finds the static factory that turns an NMS block state into Bukkit block data, matched
+     * by shape rather than by exact signature so a changed return type doesn't break it.
+     */
+    private static @Nullable Method findFromData() {
+        for (Method method : CraftBlockData.class.getMethods()) {
+            if (!Modifier.isStatic(method.getModifiers())) continue;
+            if (method.getParameterCount() != 1) continue;
+            if (!method.getParameterTypes()[0].isAssignableFrom(BlockState.class)) continue;
+            if (!BlockData.class.isAssignableFrom(method.getReturnType())) continue;
+
+            return method;
+        }
+        return null;
     }
 }

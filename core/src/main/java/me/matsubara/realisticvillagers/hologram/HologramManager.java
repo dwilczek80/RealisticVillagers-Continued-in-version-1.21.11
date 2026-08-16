@@ -36,13 +36,20 @@ public final class HologramManager {
     }
 
     public void openMenu(Player player, IVillagerNPC npc) {
+        openMenu(player, npc, false);
+    }
+
+    /**
+     * @param mayorMode opens directly on the settlement screen instead of the villager menu.
+     */
+    public void openMenu(Player player, IVillagerNPC npc, boolean mayorMode) {
         if (!isMenuEnabled()) return;
 
         // Close any existing menu for this player before opening a new one.
         HologramMenu existing = playerMenus.remove(player.getUniqueId());
         if (existing != null) existing.close(false);
 
-        HologramMenu menu = new HologramMenu(plugin, player, npc);
+        HologramMenu menu = new HologramMenu(plugin, player, npc, mayorMode);
         playerMenus.put(player.getUniqueId(), menu);
         menu.open();
     }

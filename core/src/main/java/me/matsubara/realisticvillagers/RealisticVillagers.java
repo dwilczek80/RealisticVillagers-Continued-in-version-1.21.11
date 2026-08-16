@@ -1,5 +1,9 @@
 package me.matsubara.realisticvillagers;
 
+import me.matsubara.realisticvillagers.village.BorderVisualizer;
+import me.matsubara.realisticvillagers.village.ElectionManager;
+import me.matsubara.realisticvillagers.village.MayorManager;
+import me.matsubara.realisticvillagers.village.VillageManager;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
 import com.google.common.base.Strings;
@@ -140,6 +144,20 @@ public final class RealisticVillagers extends JavaPlugin {
     private ExpectingManager expectingManager;
     private InteractCooldownManager cooldownManager;
     private CompatibilityManager compatibilityManager;
+    private VillageManager villageManager;
+    private MayorManager mayorManager;
+    private ElectionManager electionManager;
+    private BorderVisualizer borderVisualizer;
+    private me.matsubara.realisticvillagers.task.VillagePresence villagePresence;
+    private me.matsubara.realisticvillagers.task.VillageEconomy villageEconomy;
+    private me.matsubara.realisticvillagers.task.VillageHarvest villageHarvest;
+    private me.matsubara.realisticvillagers.village.Blueprints blueprints;
+    private me.matsubara.realisticvillagers.village.VillageDiscovery villageDiscovery;
+    private me.matsubara.realisticvillagers.task.HoverNametagTask hoverNametagTask;
+    private me.matsubara.realisticvillagers.task.GraveManager graveManager;
+    private me.matsubara.realisticvillagers.village.VillageCrafting villageCrafting;
+    private me.matsubara.realisticvillagers.village.ConstructionManager constructionManager;
+    private me.matsubara.realisticvillagers.village.BuildPreview buildPreview;
 
     private FileConfiguration guiConfig, lootConfig, variableTextConfig, hologramConfig, giftsConfig;
 
@@ -519,6 +537,41 @@ public final class RealisticVillagers extends JavaPlugin {
         chestManager = new ChestManager(this);
         expectingManager = new ExpectingManager(this);
         cooldownManager = new InteractCooldownManager(this);
+        villageManager = new VillageManager(this);
+        mayorManager = new MayorManager(this, villageManager);
+        electionManager = new ElectionManager(this, villageManager, mayorManager);
+        borderVisualizer = new BorderVisualizer(this);
+        villagePresence = new me.matsubara.realisticvillagers.task.VillagePresence(this);
+        villagePresence.start();
+        villageEconomy = new me.matsubara.realisticvillagers.task.VillageEconomy(this, villageManager);
+        villageEconomy.start();
+        villageHarvest = new me.matsubara.realisticvillagers.task.VillageHarvest(this, villageManager);
+        villageHarvest.start();
+        villageCrafting = new me.matsubara.realisticvillagers.village.VillageCrafting(this);
+        villageCrafting.load(getConfig().getConfigurationSection("village.crafting"));
+        blueprints = new me.matsubara.realisticvillagers.village.Blueprints(this);
+        blueprints.load();
+        villageDiscovery = new me.matsubara.realisticvillagers.village.VillageDiscovery(this, villageManager);
+
+        // Read again once the worlds exist.
+        //
+        // Plugins are enabled before the levels are prepared, so at this point getWorlds() is
+        // empty and everything kept inside a world folder — discovered blueprints, the villages
+        // themselves — reads as absent. That is not a harmless miss: the record of what has
+        // already been copied out of a village lives there too, so every village looked new on
+        // every restart and was written out again, six more near-identical houses at a time.
+        // The first tick is the earliest moment the worlds are actually there.
+        getServer().getScheduler().runTask(this, () -> {
+            villageManager.load();
+            blueprints.load();
+        });
+        hoverNametagTask = new me.matsubara.realisticvillagers.task.HoverNametagTask(this);
+        hoverNametagTask.start();
+        graveManager = new me.matsubara.realisticvillagers.task.GraveManager(this);
+        graveManager.start();
+        constructionManager = new me.matsubara.realisticvillagers.village.ConstructionManager(this);
+        buildPreview = new me.matsubara.realisticvillagers.village.BuildPreview(this);
+        new me.matsubara.realisticvillagers.listener.VillageListeners(this);
         CustomBlockData.registerListener(this);
 
         logger.info("Managers created!");
@@ -584,6 +637,19 @@ public final class RealisticVillagers extends JavaPlugin {
 
         if (hologramManager != null) hologramManager.closeAll();
 
+        // Flush village data before the early return below: it must survive a shutdown that
+        // happens while the converter/tracker never finished starting up.
+        if (borderVisualizer != null) borderVisualizer.shutdown();
+        if (hoverNametagTask != null) hoverNametagTask.shutdown();
+        if (graveManager != null) graveManager.shutdown();
+        if (villagePresence != null) villagePresence.shutdown();
+        if (villageEconomy != null) villageEconomy.shutdown();
+        if (villageHarvest != null) villageHarvest.shutdown();
+        if (buildPreview != null) buildPreview.shutdown();
+        if (constructionManager != null) constructionManager.shutdown();
+        if (electionManager != null) electionManager.shutdown();
+        if (villageManager != null) villageManager.shutdown();
+
         if (converter == null || tracker == null) return;
 
         for (World world : Bukkit.getWorlds()) {
@@ -592,6 +658,16 @@ public final class RealisticVillagers extends JavaPlugin {
                 converter.getNPC(villager).ifPresent(IVillagerNPC::stopExchangeables);
             }
         }
+    }
+
+    /** Adds a setting the config has never seen, and saves it, so it can be found and changed. */
+    private void ensureSetting(@NotNull String path, @NotNull Object value) {
+        if (getConfig().contains(path)) return;
+
+        getConfig().set(path, value);
+        saveConfig();
+
+        getLogger().info("Added missing setting " + path + " to config.yml (default: " + value + ").");
     }
 
     private void logLoadingTime(boolean loading, long now) {
@@ -816,6 +892,23 @@ public final class RealisticVillagers extends JavaPlugin {
             hologramConfig = diskCfg;
             hologramConfig.setDefaults(new MemoryConfiguration());
         }
+
+        // The text blueprint format is gone; its files would only sit there looking meaningful.
+        FileUtils.deleteQuietly(new File(pluginFolder, "configs/blueprints.yml"));
+        FileUtils.deleteQuietly(new File(pluginFolder, "configs/blueprints.yml.old"));
+
+        // Graves and the recorded-village list belong to the world they describe, and moved there.
+        // The copies an earlier build left here are read by nothing and only look meaningful.
+        FileUtils.deleteQuietly(new File(pluginFolder, "graves.yml"));
+        FileUtils.deleteQuietly(new File(pluginFolder, "recorded.yml"));
+
+        // Settings added after a server's config was written.
+        //
+        // The updater fills in missing keys, and when it doesn't the feature is simply off with
+        // nothing to say why — which has now cost two rounds of "it isn't working" for settings
+        // that were never in the file. Writing them here makes that impossible.
+        ensureSetting("nametags.only-when-looking", false);
+        ensureSetting("nametags.look-range", 12.0d);
 
         // configs/messages/system.yml — system/admin messages only (no villager dialogue)
         updateConfig(

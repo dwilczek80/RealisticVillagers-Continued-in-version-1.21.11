@@ -85,6 +85,147 @@ input-gui:
 #
 # All valid slots: https://filoghost.me/data/chest-commands/coordinates-table.png (credits to @filoghost)
 gui:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SETTLEMENT SYSTEM SCREENS
+  # ─────────────────────────────────────────────────────────────────────────
+  # Shown only when the settlement system is on (village.enabled in config.yml).
+  # The mayor's screen appears when right-clicking a mayor while holograms are
+  # OFF; with holograms on you get the hologram version instead, whose labels
+  # live in configs/holograms.yml.
+
+  # The mayor's screen.
+  mayor:
+    title: "&8Mayor of %village%"
+    village-name: "&e%village%"
+    residents: "&7Residents: &f%count%"
+    radius: "&7Radius: &f%radius% blocks"
+    center: "&7Centre: &f%x%, %z%"
+    standing-name: "&aYour standing"
+    reputation: "&7Standing: &f%value% &7/ &f%required%"
+    reputation-hint: "&8Earned through the villagers themselves, never by talking to the mayor."
+    commission-name: "&eBuilding commissions"
+    commission-allowed: "&aYou may commission new buildings."
+    commission-no-mayor: "&cThis settlement has no mayor."
+    commission-low-reputation: "&cYour standing with the mayor is too low."
+    commission-no-family: "&cYou need a family among this village's residents."
+    storage-name: "&eSettlement stores"
+    storage-empty: "&7The stores are empty."
+    storage-entry: "&7%item%: &f%amount%"
+    storage-more: "&8...and more"
+    program-name: "&eGoverning program: &f%program%"
+    radar-name: "&eVillage map"
+    borders-name: "&eSettlement border"
+    borders-on: "&aCurrently shown."
+    borders-off: "&7Currently hidden."
+    program-none: "&7This mayor took office without a platform."
+    program-none-name: "none"
+    effect-trade: "&7Trade prices: %value%"
+    effect-cost: "&7Build cost: %value%"
+    effect-time: "&7Build time: %value%"
+    effect-harvest: "&7Resource gathering: %value%"
+    radar-hint: "&7See the settlement laid out, and what stands where."
+
+  # The chest map, opened from the mayor's screen. This is what servers running the chest
+  # menus get instead of the hologram radar — each slot is one tile of the settlement.
+  radar:
+    title: "&8Map of %village%"
+    you: "&dYou are here"
+    mayor: "&a&lMAYOR &f%name%"
+    resident: "&f%name%"
+    building-name: "&eBuilding"
+    building-kind: "&7Type: &f%kind%"
+    building-box: "&7Size: &f%width%x%depth%x%height% &7blocks at &f%x%, %y%, %z%"
+    building-beds: "&7Sleeps: &f%count%"
+    building-work: "&7Work: &f%trades%"
+    building-outline: "&bClick to outline it in the world"
+    zoom-in: "&eZoom in »"
+    zoom-out: "&e« Zoom out"
+    back: "&c« Back"
+    legend: "&eMap key"
+    legend-size: "&7Settlement: &f%x% x %z% &7blocks"
+    legend-zoom: "&7Showing: &f%percent%% &7of the settlement"
+    legend-outside: "&8Brown: outside the settlement"
+    outside: "&8Outside the settlement"
+    inside-building: "&7Inside a building"
+    type-residential: "&aResidential"
+    type-workplace: "&6Workplace"
+    type-mixed: "&bHome & workshop"
+    type-unknown: "&7Unknown"
+
+  # The ballot, shown when right-clicking the village bell during an election.
+  election:
+    title: "&8Election: %village%"
+    candidate-name: "&e%name%"
+    program-line: "&7Program: &f%program%"
+    effect-trade: "&7Trade prices: %value%"
+    effect-cost: "&7Build cost: %value%"
+    effect-time: "&7Build time: %value%"
+    effect-harvest: "&7Resource gathering: %value%"
+    votes-line: "&7Votes: &f%votes%"
+    click-to-vote: "&eClick to vote"
+    your-vote: "&aYou voted for this candidate"
+    already-voted: "&cYou already voted"
+    timer: "&eTime left: &f%time%"
+
+    # Display names for the electoral programs. Each program is a trade-off; the
+    # exact numbers are shown to the player automatically as +/- percentages.
+    programs:
+      merchant-friendly: "Merchant Friendly"
+      builder-friendly: "Builder Friendly"
+      ambitious: "Ambitious"
+      frugal: "Frugal"
+      populist: "Populist"
+      industrious: "Industrious"
+      leisurely: "Leisurely"
+      steward: "Steward"
+
+  # The list of buildings the settlement can raise, opened from the mayor's screen.
+  # Each building's cost is counted from its blueprint in configs/blueprints.yml, then
+  # scaled by the sitting mayor's programme.
+  commission:
+    title: "&8Build in %village%"
+    size: "&7Size: &f%width%x%depth%x%height%"
+    time: "&7Takes: &f%seconds%s"
+    materials: "&7Materials:"
+    material-have: "&a+ &f%item%&7: %held%/%needed%"
+    material-missing: "&c- &f%item%&7: %held%/%needed%"
+    # Shown when a building needs more kinds of material than fit in one tooltip. Missing
+    # ones are listed first, so what you are short of is never the part that gets cut.
+    material-more: "&8...and %count% more"
+    can-build: "&aClick to place it"
+    cannot-build: "&cThe stores are short."
+    none: "&cNothing here can be built yet."
+    none-hint: "&7Record a village you have found, or add structures to the blueprints folder."
+    region: "&8From: &7%region%"
+    region-any: "anywhere"
+    # A recorded building is named after its type; the wording comes from gui.radar.type-*
+    # above, so renaming a type there renames every building of that type here.
+    name-with-trade: "&f%trade% &7— %type%"
+    rename-hint: "&8Shift-click to rename it"
+    rename-title: "&8Name this building"
+    previous: "&e« Previous page"
+    next: "&eNext page »"
+    page: "&7Page &f%page%&7/&f%pages%"
+    back: "&c<< Back"
+
+  # The settlement's stores, opened from the mayor's screen.
+  # Anyone may give goods; taking them needs the same standing as commissioning a building
+  # (operators and realisticvillagers.village.bypass are exempt from that, as always).
+  storage:
+    title: "&8Stores of %village%"
+    item: "&f%item%"
+    held: "&7Held: &f%amount%"
+    take: "&eClick to take up to one stack"
+    empty: "&7The stores are empty."
+    help: "&eThe settlement's stores"
+    help-deposit: "&7Shift-click an item in your inventory to give it."
+    help-withdraw: "&7Click a stack here to take it."
+    help-no-withdraw: "&cYou need standing with the mayor to take from the stores."
+    previous: "&e« Previous page"
+    next: "&eNext page »"
+    back: "&c<< Back"
+
   # Rainbow animation is applied to all GUI's.
   rainbow-animation:
     enabled: false

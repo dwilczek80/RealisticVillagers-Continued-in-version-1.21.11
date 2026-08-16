@@ -9,7 +9,7 @@
     <parent>
         <groupId>me.matsubara</groupId>
         <artifactId>realisticvillagers-parent</artifactId>
-        <version>3.3.6.10</version>
+        <version>3.3.6.11</version>
     </parent>
 
     <pluginRepositories>
@@ -121,9 +121,26 @@
             </plugin>
         </plugins>
         <resources>
+            <!--
+                Binary resources are copied byte for byte. Filtering runs every resource through
+                a text decoder to substitute ${...} placeholders, which a schematic is not, and
+                the build dies decoding it as UTF-8.
+            -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>**/*.schem</include>
+                    <include>**/*.nbt</include>
+                </includes>
+            </resource>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>**/*.schem</exclude>
+                    <exclude>**/*.nbt</exclude>
+                </excludes>
             </resource>
         </resources>
     </build>
