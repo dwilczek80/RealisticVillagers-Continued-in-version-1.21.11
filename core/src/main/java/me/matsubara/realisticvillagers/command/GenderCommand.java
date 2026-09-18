@@ -1,6 +1,7 @@
 package me.matsubara.realisticvillagers.command;
 
 import me.matsubara.realisticvillagers.RealisticVillagers;
+import me.matsubara.realisticvillagers.files.Config;
 import me.matsubara.realisticvillagers.files.Messages;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -51,13 +52,31 @@ public class GenderCommand implements CommandExecutor, TabCompleter {
         String currentSex = player.getPersistentDataContainer()
                 .get(plugin.getPlayerSexKey(), PersistentDataType.STRING);
 
-        if (currentSex != null && !currentSex.isEmpty()) {
+        // Answered once, and that answer stands.
+        //
+        // This had been opened up so that somebody who answered wrongly was not left wearing a
+        // body they never chose. That was a real problem and this was the wrong place to fix it:
+        // a gender that anybody can retype whenever they like is not an answer, it is a switch,
+        // and half the plugin reads it — names, figures, how villagers speak to you — so it
+        // changes under everyone standing nearby every time it is flipped.
+        //
+        // No permission opens this. The first attempt hung the exception on
+        // realisticvillagers.genderset, which is granted to operators by default — so the one
+        // person most likely to be testing the lock was the one person it did not apply to, and
+        // it read as a lock that plainly did not work. Staff still have the way out, and it is a
+        // different command: /rv genderset <player> <male|female> sets somebody's gender outright,
+        // including their own. A server that wants the question reopened to everybody says so in
+        // config.yml instead.
+        boolean answered = currentSex != null && !currentSex.isEmpty();
+
+        if (answered && (newSex.equalsIgnoreCase(currentSex)
+                || !Config.GENDER_SELECTION_ALLOW_CHANGE.asBool(false))) {
             messages.send(player, Messages.Message.PLAYER_GENDER_ALREADY,
                     s -> s.replace("%gender%", currentSex));
             return true;
         }
 
-        player.getPersistentDataContainer().set(plugin.getPlayerSexKey(), PersistentDataType.STRING, newSex);
+        plugin.setPlayerSex(player, newSex);
         messages.send(player, Messages.Message.PLAYER_GENDER_SET,
                 s -> s.replace("%gender%", newSex));
         return true;

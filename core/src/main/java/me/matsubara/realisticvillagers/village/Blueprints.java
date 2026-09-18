@@ -126,13 +126,58 @@ public final class Blueprints {
         var config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         java.util.Set<Long> set = into.computeIfAbsent(scopeKey(owner, world), key -> new java.util.HashSet<>());
 
+        boolean pruned = false;
+
         for (String key : config.getKeys(false)) {
+            long fingerprint;
             try {
-                set.add(Long.parseLong(key));
+                fingerprint = Long.parseLong(key);
             } catch (NumberFormatException ignored) {
                 // A line that isn't a fingerprint costs that entry and nothing else.
+                continue;
             }
+
+            // A note about a building whose file has been deleted is a note about nothing.
+            //
+            // It still had teeth, though: the note is what stops a village being recorded twice,
+            // so a blueprint someone deleted could never be recorded again — the village had been
+            // learned, the file was gone, and walking back in wrote nothing because the number
+            // still matched. Deleting a building you did not like now means exactly what it looks
+            // like it means, and the next visit records it afresh.
+            String name = config.getString(key);
+            if (name != null && !name.isEmpty() && fileFor(ownerFolder, name) == null) {
+                config.set(key, null);
+                pruned = true;
+                continue;
+            }
+
+            set.add(fingerprint);
         }
+
+        if (!pruned) return;
+
+        try {
+            config.save(file);
+        } catch (java.io.IOException exception) {
+            // The pruning held for this run either way; it is only the tidying that failed.
+            plugin.getLogger().warning("Could not tidy " + INDEX_FILE + ": " + exception.getMessage());
+        }
+    }
+
+    /** The file a recorded building was written to, looked for in every region beside the index. */
+    private @Nullable File fileFor(@NotNull File ownerFolder, @NotNull String name) {
+        File here = find(ownerFolder, name);
+        if (here != null) return here;
+
+        File[] regions = ownerFolder.listFiles(File::isDirectory);
+        if (regions == null) return null;
+
+        for (File region : regions) {
+            File file = find(region, name);
+            if (file != null) return file;
+        }
+
+        return null;
     }
 
     private static @NotNull String scopeKey(@Nullable java.util.UUID owner, @Nullable String world) {
@@ -230,8 +275,21 @@ public final class Blueprints {
         if (blueprints.isEmpty()) {
             plugin.getLogger().info("No buildings found in the blueprints folder — see the readme in it "
                     + "for how to save one with a structure block.");
-        } else {
-            plugin.getLogger().info("Loaded " + blueprints.size() + " building(s) from the blueprints folder.");
+            return;
+        }
+
+        plugin.getLogger().info("Loaded " + blueprints.size() + " building(s) from the blueprints folder.");
+
+        // Said out loud because it is the one thing about a building that cannot be seen until it
+        // has been built. A file that starts at its first course of walls has no floor in it at
+        // all, so whatever it is stood on becomes its floor. Anything this plugin recorded before
+        // the scanner could find floors reads that way, and recording the village again is what
+        // fixes it — which nobody would think to do without being told.
+        long floorless = blueprints.values().stream().filter(blueprint -> !blueprint.hasOwnFloor()).count();
+        if (floorless > 0) {
+            plugin.getLogger().info(floorless + " of them have no floor of their own, so the ground they are "
+                    + "put on serves as one. A building recorded before floors were understood reads that "
+                    + "way: delete it and visit the village again to record it with its floor.");
         }
     }
 

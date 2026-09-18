@@ -373,8 +373,16 @@ public final class VillagerTracker implements Listener {
         selectedProfession.remove(uniqueId);
     }
 
+    // Her figure is worn rather than carried, so it goes when she does with no entity left hanging
+    // in the air. Only the note of who was shown it outlives her, and that is dropped here.
     public void removeNPC(int entityId) {
-        getNPC(entityId).ifPresent(npc -> pool.removeNPC(npc.getEntityId()));
+        getNPC(entityId).ifPresent(npc -> {
+            pool.removeNPC(npc.getEntityId());
+
+            var shapes = plugin.getShapeEquipment();
+            var bukkit = npc.getNpc().bukkit();
+            if (shapes != null && bukkit != null) shapes.forget(bukkit.getUniqueId());
+        });
     }
 
     public boolean hasNPC(int entityId) {

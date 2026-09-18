@@ -125,6 +125,31 @@ villager-defend-following-player: true
 # NOTE: At least one of the 3 previous options must be enabled.
 villager-defend-attack-players: false
 
+
+# Body traits: every villager her own height and build, women a figure drawn from their own skin.
+#
+# The shapes live in a resource pack the plugin writes and then hands to players itself, so there
+# is nothing to host and nothing to paste into server.properties. It is added alongside whatever
+# pack the server already sends, not in place of it, and arrives in the time it takes to download.
+appearance:
+  # Draw body shapes at all. Off leaves everyone the plain player model; heights still vary.
+  body-shapes: true
+  # Give women a bust. Villagers and players both, each drawn from her own skin.
+  bust: true
+  # Add weight to whoever carries it. This one is not about women: roughly two thirds of everyone,
+  # men included, is heavy enough for it to show, and it sits on the belly rather than the chest.
+  # Turn it off if you would rather nobody had a stomach.
+  build: true
+  # Whether players get a figure too, or only villagers.
+  players: true
+
+  serve-pack: true
+  # Port the pack is served on. Must be reachable by players, like the game port itself.
+  pack-port: 25580
+  # Address players should fetch it from. "auto" uses the server's own, which is right on a home
+  # network and wrong behind a proxy or a host that gives you a different public address.
+  pack-host: auto
+
 # Villager name tags.
 nametags:
   # Show a villager's name only to the player looking at it.
@@ -458,6 +483,16 @@ village:
     #
     # Set to false for one shared list, recorded the first time anybody arrives.
     personal-discovery: true
+    # How many buildings one village may contribute to your blueprints.
+    #
+    # A settlement has a handful of shapes and then repeats them, so past a few there is
+    # nothing new being learned - only more entries to scroll past. Walking into a village
+    # costs a full read of every block of each building saved, which is the other reason
+    # there is a number here at all.
+    #
+    # Raise it to take the whole village. The log says which buildings were left behind and
+    # why, so a village of seven that contributed six is never a mystery.
+    discovery-limit: 10
     # How fast a building goes up, in blocks a second, before the mayor's programme is applied.
     # A building's total time is its block count divided by this, so lowering it makes raising
     # anything a job the settlement visibly labours over.
@@ -965,6 +1000,15 @@ increase-baby-scale: true
 gender-selection:
   enabled: true
   default: male
+  # Whether /gender may change an answer that has already been given.
+  #
+  # Off, because a gender is read by half the plugin - names, figures, how villagers speak to
+  # you - so one that can be retyped at will is not an answer, it is a switch, and it flips
+  # under everyone standing nearby. No permission overrides this, operators included.
+  #
+  # Staff can still put somebody right, with a different command:
+  #   /rv genderset <player> <male|female>
+  allow-change: false
 
 # Regionality system: assigns names and messages based on villager biome type.
 # When enabled, villagers in desert biomes get Arabic names, snow biomes get Nordic names, etc.

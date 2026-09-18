@@ -262,6 +262,15 @@ public final class BuildPreview {
      * <p>
      * Centred on their aim rather than cornered on it: a building lines up by its middle, and
      * having it grow off to one side of the cursor makes it far harder to place.
+     * <p>
+     * Landed on the block being pointed at, or on top of it, according to how the building stood
+     * in its own ground — see {@link Blueprint#lift()}. A house whose floor was laid on the turf
+     * goes back on top of the turf; one whose floor replaced the turf replaces it again.
+     * <p>
+     * Asked of the building rather than fixed, because both kinds are out there in the same
+     * village and neither can be told from the other in the menu. Laying them all the same way
+     * buried most of them a block deep with their floors below the grass line, and the only way
+     * to find out was to build one and look at it.
      */
     private @Nullable Location aim(@NotNull Player player, @NotNull Session session) {
         World world = player.getWorld();
@@ -272,11 +281,14 @@ public final class BuildPreview {
         Location eye = player.getEyeLocation();
         Location base = eye.clone().add(eye.getDirection().multiply(session.distance));
 
+        // Zero for a building that was cut into the ground, one for a building that stood on it.
+        int lift = session.blueprint.lift();
+
         var hit = player.rayTraceBlocks(session.distance);
         if (hit != null && hit.getHitBlock() != null) {
-            base = hit.getHitBlock().getLocation().add(0.0d, 1.0d, 0.0d);
+            base = hit.getHitBlock().getLocation().add(0.0d, lift, 0.0d);
         } else {
-            base.setY(world.getHighestBlockYAt(base.getBlockX(), base.getBlockZ()) + 1);
+            base.setY(world.getHighestBlockYAt(base.getBlockX(), base.getBlockZ()) + lift);
         }
 
         int width = session.blueprint.getWidth(session.rotation);

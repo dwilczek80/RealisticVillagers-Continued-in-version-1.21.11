@@ -133,7 +133,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 messages.send(sender, Messages.Message.UNKNOWN_PLAYER);
                 return true;
             }
-            target.getPersistentDataContainer().set(plugin.getPlayerSexKey(), PersistentDataType.STRING, newSex);
+            plugin.setPlayerSex(target, newSex);
             messages.send(target, Messages.Message.PLAYER_GENDER_SET,
                     s -> s.replace("%gender%", newSex));
             messages.send(sender, Messages.Message.GENDER_CHANGED,

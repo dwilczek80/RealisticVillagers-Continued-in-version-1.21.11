@@ -1625,6 +1625,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
                 ItemStackUtils.setBetterWeaponInMaindHand(getBukkitEntity(), event.getItem().getItemStack(), true, true);
                 ItemStackUtils.setArmorItem(getBukkitEntity(), event.getItem().getItemStack());
             }
+            return;
         }
 
         ItemStack remaining = container.addItem(stack);

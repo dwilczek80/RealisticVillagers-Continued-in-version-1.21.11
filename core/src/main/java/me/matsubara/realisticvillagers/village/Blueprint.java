@@ -43,6 +43,12 @@ public final class Blueprint {
 
     private final Map<Material, Integer> cost;
 
+    /** Whether the bottom layer is the building's floor. See {@link #hasOwnFloor()}. */
+    private final boolean ownFloor;
+
+    /** How far above the ground the bottom layer belongs. See {@link #lift()}. */
+    private final int lift;
+
     /**
      * The region this building belongs to, or {@code null} for one that suits anywhere.
      * <p>
@@ -88,6 +94,8 @@ public final class Blueprint {
         this.owner = owner;
         this.world = world;
         this.cost = countCost(blocks);
+        this.ownFloor = readsAsFloor(blocks);
+        this.lift = readsAsLift(blocks);
     }
 
     /**
@@ -160,6 +168,45 @@ public final class Blueprint {
 
     public int getSeconds() {
         return seconds;
+    }
+
+    /**
+     * Whether the bottom layer of this building is its floor rather than its first course of walls.
+     * <p>
+     * Asked because the answer decides where the building is laid, and because the two kinds of
+     * file are both out there and look identical from the outside. Anything the plugin has
+     * recorded since the scanner learned to find floors starts at the floor; everything recorded
+     * before that, and most schematics people make by hand, start at the course above it. Laying
+     * both the same way is what put one of them a block into the ground with no floor left to
+     * stand on — and which one it was could only be seen after it had been built.
+     * <p>
+     * Told apart by the middle of the bottom layer, never by its edges. A floor is a slab across
+     * the whole footprint, so its middle is filled; a course of walls is a ring, so its middle is
+     * the empty air of a room with at most a chest or a bed standing in it. The edges say nothing
+     * either way, since the recorder deliberately saves a block of margin around the building and
+     * a hand-made schematic usually has some too.
+     */
+    public boolean hasOwnFloor() {
+        return ownFloor;
+    }
+
+    /**
+     * How far above the block being pointed at this building's bottom course belongs, in blocks.
+     * <p>
+     * Village houses are built both ways and the difference is exactly one block. Most stand
+     * <i>on</i> the ground: their floor is a course laid on the turf, and you step up to go in.
+     * Some are cut <i>into</i> it: the floor replaces the turf and the doorway is level with the
+     * grass. Laid the wrong way round, the first kind sinks a block into the earth with its floor
+     * below the grass line, and the second stands a block proud of its own doorstep.
+     * <p>
+     * Answered from the building's own picture rather than guessed. A recorded building carries a
+     * margin of whatever surrounded it, so the bottom layer's outer ring is the ground beside the
+     * building at the height of its lowest course. Ground in that ring means the ground came up
+     * that far and the building was cut into it; a ring of air and grass tufts means the ground
+     * stopped lower down and the building stood on top of it.
+     */
+    public int lift() {
+        return lift;
     }
 
     public int getHeight() {
@@ -258,6 +305,68 @@ public final class Blueprint {
      * Water and other things that exist in the world but not in an inventory are placed free,
      * since a settlement can no more stockpile water than it can stockpile fire.
      */
+    /** How high {@code blocks} sits above the ground beside it. See {@link #lift()}. */
+    private static int readsAsLift(BlockData @NotNull [][][] blocks) {
+        if (blocks.length == 0) return 1;
+
+        BlockData[][] bottom = blocks[0];
+        if (bottom.length < 3 || bottom[0].length < 3) return 1;
+
+        int depth = bottom.length;
+        int width = bottom[0].length;
+
+        int cells = 0;
+        int ground = 0;
+
+        for (int z = 0; z < depth; z++) {
+            for (int x = 0; x < width; x++) {
+                if (x > 0 && x < width - 1 && z > 0 && z < depth - 1) continue;
+
+                cells++;
+                BlockData data = bottom[z][x];
+                if (data != null && VillageBuildings.isGround(data.getMaterial())) ground++;
+            }
+        }
+
+        // A quarter of the ring is plenty, and deliberately so. A building recorded before the
+        // recorder saved its far margin properly has its own wall standing on two of the four
+        // sides of that ring, which drags any "most of it" test towards the wrong answer; real
+        // examples come out at nought or two cells in twenty-two against twenty-four in
+        // thirty-two, so the two kinds are nowhere near the line.
+        return cells > 0 && ground * 4 >= cells ? 0 : 1;
+    }
+
+    /** Whether {@code blocks} starts with a floor. See {@link #hasOwnFloor()}. */
+    private static boolean readsAsFloor(BlockData @NotNull [][][] blocks) {
+        if (blocks.length == 0) return false;
+
+        BlockData[][] bottom = blocks[0];
+        if (bottom.length == 0 || bottom[0].length == 0) return false;
+
+        int depth = bottom.length;
+        int width = bottom[0].length;
+
+        // Two rings in where the building is big enough to have two: one ring is the margin and
+        // the next is the wall, and it is what lies inside the wall that answers the question.
+        int inset = width > 4 && depth > 4 ? 2 : 1;
+        if (width <= inset * 2 || depth <= inset * 2) return false;
+
+        int cells = 0;
+        int filled = 0;
+
+        for (int z = inset; z < depth - inset; z++) {
+            for (int x = inset; x < width - inset; x++) {
+                cells++;
+                if (bottom[z][x] != null) filled++;
+            }
+        }
+
+        // Half of the middle. A floor is all of it barring a doorway; a room is none of it barring
+        // the furniture, so anything near the line is unlike either and is treated as a room —
+        // which is the safer mistake, standing a building a block high rather than burying it.
+        return cells > 0 && filled * 2 >= cells;
+    }
+
     private static @NotNull Map<Material, Integer> countCost(BlockData[][][] blocks) {
         Map<Material, Integer> counted = new EnumMap<>(Material.class);
 

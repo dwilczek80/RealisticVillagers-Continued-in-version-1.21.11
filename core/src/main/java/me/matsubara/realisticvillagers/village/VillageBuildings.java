@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -56,7 +57,7 @@ public final class VillageBuildings {
      * nothing — the blocks are already being read — whereas recovering it afterwards would mean
      * scanning the whole village a second time.
      *
-     * @param minY          the lowest placed block, normally the floor.
+     * @param minY          the floor: the level the building's rooms stand on.
      * @param maxY          the highest placed block: the roof, or the tip of whatever tops it.
      * @param beds          how many villagers sleep here.
      * @param workstations  how many villagers work here.
@@ -239,7 +240,8 @@ public final class VillageBuildings {
                 // Unloaded chunks report air, which would invent buildings out of nothing.
                 if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
 
-                if (columnExtent(world, x, z) == null) continue;
+                // Seeds have to stand on their own: an overhang extends a building, never starts one.
+                if (columnExtent(world, x, z, false) == null) continue;
 
                 int[] bounds = growStructure(world, visited, centerX, centerZ, radius, span, x, z);
                 if (bounds == null) continue;
@@ -330,15 +332,23 @@ public final class VillageBuildings {
         int maxX = seedX;
         int minZ = seedZ;
         int maxZ = seedZ;
-        int minY = Integer.MAX_VALUE;
         int maxY = Integer.MIN_VALUE;
+
+        // Every column the building turns out to be made of, kept until the fill has finished.
+        //
+        // Where the floor is cannot be settled a column at a time. A column on its own cannot tell
+        // the floor of a room from the ground under the eaves of the roof hanging over it: both are
+        // open space with a placed block above them, and on anything but flat ground the ground
+        // outside is the lower of the two — which is how the box's floor kept ending up in the
+        // yard. What separates them is where the column sits in the building, inside the walls or
+        // off the edge of them, and that is not known until the whole building has been walked.
+        Map<Long, Column> members = new HashMap<>();
 
         ArrayDeque<int[]> queue = new ArrayDeque<>();
         queue.add(new int[]{seedX, seedZ});
         visited[index(seedX - centerX, seedZ - centerZ, radius, span)] = true;
 
         int steps = 0;
-        boolean found = false;
 
         // Judged over the whole structure rather than column by column.
         //
@@ -353,18 +363,18 @@ public final class VillageBuildings {
             int[] at = queue.poll();
             steps++;
 
-            Column column = columnExtent(world, at[0], at[1]);
+            // Everything but the seed may be an overhang, which is how a roof keeps its eaves.
+            Column column = columnExtent(world, at[0], at[1], at[0] != seedX || at[1] != seedZ);
             if (column == null) continue;
 
             if (!column.ambiguousOnly()) allAmbiguous = false;
             if (column.hollow()) anyHollow = true;
 
-            found = true;
+            members.put(key(at[0], at[1]), column);
             minX = Math.min(minX, at[0]);
             maxX = Math.max(maxX, at[0]);
             minZ = Math.min(minZ, at[1]);
             maxZ = Math.max(maxZ, at[1]);
-            minY = Math.min(minY, column.minY());
             maxY = Math.max(maxY, column.maxY());
 
             for (int[] step : STEPS) {
@@ -388,12 +398,136 @@ public final class VillageBuildings {
             }
         }
 
-        if (!found) return null;
+        if (members.isEmpty()) return null;
 
         // Nothing but snow and ice, and not a room anywhere in it: a drift, not an igloo.
         if (allAmbiguous && !anyHollow) return null;
 
-        return new int[]{minX, minZ, maxX, maxZ, minY, maxY};
+        return new int[]{minX, minZ, maxX, maxZ, settleFloor(members), maxY};
+    }
+
+    /** Packs a column's world coordinates into one key, so its neighbours can be looked up. */
+    private static long key(int x, int z) {
+        return ((long) x << 32) | (z & 0xffffffffL);
+    }
+
+    private static int keyX(long key) {
+        return (int) (key >> 32);
+    }
+
+    private static int keyZ(long key) {
+        return (int) key;
+    }
+
+    /**
+     * Where this building's floor is.
+     * <p>
+     * Asked of the columns the building encloses — the ones with more building on all four sides
+     * of them — and of no others. A roof overhangs its walls, so the outermost columns of nearly
+     * every building are eaves with the <i>surrounding</i> ground beneath them, and taking those at
+     * their word is what put a house's floor out on the lawn it was standing above. Enclosed
+     * columns are the inside of the building, and the inside is where the floor is.
+     * <p>
+     * Among those, the level most of them agree on. Floors are flat, so the real one is a level
+     * repeated by half a room's worth of columns while a chest, a table or a step up to a loft is
+     * one column each. Ties go to the lower level, so a room floored partly in planks and partly
+     * in the ground it was built on settles on the ground, with the box holding both.
+     * <p>
+     * Buildings that enclose nothing — a wall, a bridge, a tower solid to the top — have no inside
+     * to ask, and fall back to the lowest course that is standing on something. Standing on
+     * something is what keeps the eaves out of the answer there too.
+     */
+    private static int settleFloor(@NotNull Map<Long, Column> members) {
+        int base = commonBase(members);
+        Map<Integer, Integer> votes = new HashMap<>();
+
+        for (Map.Entry<Long, Column> entry : members.entrySet()) {
+            int floor = entry.getValue().floorY();
+            if (floor == NO_FLOOR) continue;
+            if (!enclosed(members, entry.getKey())) continue;
+
+            // Below the course the building stands on, so this is not a room in it.
+            //
+            // The enclosure test alone loses a roof that overhangs by a single block, which is
+            // most of them. Two blocks of eave and the inner ring has building on all four sides
+            // of it as surely as a bedroom does, while what lies under it is still the yard. A
+            // yard lower than the house's own footings is the one thing that gives it away, and
+            // on flat ground, where it does not, there is nothing to give away: the yard and the
+            // floor are the same level and either answer is the right one.
+            if (base != NO_FLOOR && floor < base - 1) continue;
+
+            votes.merge(floor, 1, Integer::sum);
+        }
+
+        int floor = mostCommon(votes);
+        if (floor != NO_FLOOR) return floor;
+
+        int grounded = Integer.MAX_VALUE;
+        int lowest = Integer.MAX_VALUE;
+
+        for (Column column : members.values()) {
+            lowest = Math.min(lowest, column.minY());
+            if (column.grounded()) grounded = Math.min(grounded, column.minY());
+        }
+
+        return grounded != Integer.MAX_VALUE ? grounded : lowest;
+    }
+
+    /**
+     * The level this building meets the ground at, or {@link #NO_FLOOR} where nothing tells us.
+     * <p>
+     * Taken from the columns that are standing on something rather than hanging off the side of
+     * the roof — the walls, in other words, and the floor they enclose where one was laid. The
+     * level most of them share is where the building was set down.
+     */
+    private static int commonBase(@NotNull Map<Long, Column> members) {
+        Map<Integer, Integer> votes = new HashMap<>();
+        for (Column column : members.values()) {
+            if (column.grounded()) votes.merge(column.minY(), 1, Integer::sum);
+        }
+
+        return mostCommon(votes);
+    }
+
+    /**
+     * The level the most columns agree on, ties going to the lower one.
+     * <p>
+     * Lower on a tie because these levels are floors and footings: a floor laid partly in planks
+     * and partly in the ground it was built on settles on the ground, and the box holds both.
+     */
+    private static int mostCommon(@NotNull Map<Integer, Integer> votes) {
+        int bestY = NO_FLOOR;
+        int bestCount = 0;
+
+        for (Map.Entry<Integer, Integer> vote : votes.entrySet()) {
+            int count = vote.getValue();
+            if (count > bestCount || (count == bestCount && vote.getKey() < bestY)) {
+                bestCount = count;
+                bestY = vote.getKey();
+            }
+        }
+
+        return bestY;
+    }
+
+    /** Whether the building carries on in all four directions from this column. */
+    private static boolean enclosed(@NotNull Map<Long, Column> members, long at) {
+        int x = keyX(at);
+        int z = keyZ(at);
+
+        for (int[] step : STEPS) {
+            if (!members.containsKey(key(x + step[0], z + step[1]))) return false;
+        }
+
+        return true;
+    }
+
+    /** Whether there is anything solid at this block at all — floor, wall or bare ground. */
+    private static boolean supports(@NotNull World world, int x, int y, int z) {
+        if (y < world.getMinHeight()) return false;
+
+        Material type = world.getBlockAt(x, y, z).getType();
+        return !type.isAir() && type.isSolid();
     }
 
     private static final int[][] STEPS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -426,6 +560,19 @@ public final class VillageBuildings {
      */
     private static final int TERRAIN_RUN = 3;
 
+    /** Stands in for "this column has no floor of its own", which is what an eave has. */
+    private static final int NO_FLOOR = Integer.MIN_VALUE;
+
+    /**
+     * The tallest gap between a floor and what stands over it that still counts as a room.
+     * <p>
+     * A floor is recognised by there being building above it, so something has to say how far
+     * above. Without a limit, the first solid block under a house built out over a ravine is the
+     * bottom of the ravine, and the house is reported forty blocks tall with its floor down among
+     * the bats. Eight is a generous room and nothing like a canyon.
+     */
+    private static final int MAX_ROOM_HEIGHT = 8;
+
     /**
      * How many player-placed blocks a column needs before it counts as part of a building.
      * <p>
@@ -439,6 +586,13 @@ public final class VillageBuildings {
      * A road is one block thick and a building is not: even its empty middle has a floor under it
      * and a roof over it. Counting placed blocks down the column tells the two apart without
      * having to know which materials a given village happens to be built from.
+     * <p>
+     * One place a building genuinely is one block thick: the overhanging edge of a roof, which is
+     * a single course of stairs with nothing under it at all. Those are let through separately —
+     * see {@code grounded} in {@link #columnExtent} — because what tells them from a road is not
+     * how many blocks there are but what is underneath. They are let through for their shape
+     * alone: the ground under an eave belongs to the yard rather than to the building, so those
+     * columns are kept out of {@link #settleFloor}.
      */
     private static final int MIN_BUILDING_BLOCKS = 2;
 
@@ -467,7 +621,7 @@ public final class VillageBuildings {
      * The span is the reason this reports a range rather than a yes/no: gathering it here is what
      * gives buildings a height, and it is free because the blocks are being read anyway.
      */
-    private static @Nullable Column columnExtent(@NotNull World world, int x, int z) {
+    private static @Nullable Column columnExtent(@NotNull World world, int x, int z, boolean allowOverhang) {
         int top = world.getHighestBlockYAt(x, z);
         int stop = Math.max(world.getMinHeight(), top - MAX_COLUMN_SCAN);
 
@@ -483,6 +637,10 @@ public final class VillageBuildings {
         boolean hollow = false;
         boolean gapSinceLastPlaced = false;
 
+        // Open blocks since the last solid one, and the lowest floor found under such a gap.
+        int gap = 0;
+        int floor = NO_FLOOR;
+
         for (int y = top; y >= stop; y--) {
             org.bukkit.block.Block block = world.getBlockAt(x, y, z);
             Material type = block.getType();
@@ -495,7 +653,27 @@ public final class VillageBuildings {
             // gains a "building" out at sea that nobody built and nobody lives in.
             if (block.isLiquid()) break;
 
-            if (isBuildingMaterial(type)) {
+            boolean building = isBuildingMaterial(type);
+
+            // Air and grass inside a building are not the bottom of it — a hollow tower is mostly
+            // air. Only solid ground ends the column, and only a run of it, so a building resting
+            // on one natural block isn't cut off at its own foundations.
+            if (!building && (type.isAir() || !type.isSolid())) {
+                if (type.isAir()) gapSinceLastPlaced = true;
+                gap++;
+                continue;
+            }
+
+            // Something solid with open space above it and building over that space is a floor
+            // with a room standing on it — whether the floor was laid as one or is the bare ground
+            // the house was put up on, which is how most village houses are floored. Keeping the
+            // lowest such level in the column is what sets a two-storey house's box on its ground
+            // floor rather than on its landing, and the height limit is what stops a house built
+            // out over a hole from taking the bottom of the hole for its floor.
+            if (gap > 0 && gap <= MAX_ROOM_HEIGHT && placed > 0) floor = y;
+            gap = 0;
+
+            if (building) {
                 terrain = 0;
                 placed++;
                 if (isAmbiguous(type)) ambiguous++;
@@ -510,27 +688,40 @@ public final class VillageBuildings {
                 continue;
             }
 
-            // Air and grass inside a building are not the bottom of it — a hollow tower is mostly
-            // air. Only solid ground ends the column, and only a run of it, so a building resting
-            // on one natural block isn't cut off at its own foundations.
-            if (type.isAir() || !type.isSolid()) {
-                if (type.isAir()) gapSinceLastPlaced = true;
-                continue;
-            }
             if (++terrain >= TERRAIN_RUN) break;
         }
 
-        if (placed < MIN_BUILDING_BLOCKS) return null;
-        return new Column(lowest, highest, ambiguous == placed, hollow);
+        if (placed == 0) return null;
+
+        // Whether the lowest course of this column is standing on anything.
+        //
+        // This is what separates the eaves of a roof from a road, and it does it without knowing
+        // anything about either. A road lies on the ground; the edge of a roof hangs off the side
+        // of a house with open air beneath it, and nothing in a village is built that way by
+        // accident. Judging one-block columns by thickness alone lost every overhang, which is why
+        // roofs were coming back with their sides shaved off.
+        boolean grounded = supports(world, x, lowest - 1, z);
+
+        // A single course counts only where it is hanging off something, and never as a seed —
+        // see the caller — or a slab of path would be enough to start a building of its own.
+        if (placed < MIN_BUILDING_BLOCKS && !(allowOverhang && !grounded)) return null;
+
+        return new Column(lowest, highest, floor, ambiguous == placed, hollow, grounded);
     }
 
     /**
      * One column's verdict.
      *
+     * @param minY          its lowest placed block: the bottom course of the building here.
+     * @param maxY          its highest placed block.
+     * @param floorY        the floor it stands on, or {@link #NO_FLOOR} where it has none — which
+     *                      is the case for a solid wall, and for an eave hanging over open air.
      * @param ambiguousOnly nothing in it but snow and ice, so it cannot be judged on material.
      * @param hollow        it has open space enclosed between placed blocks: a roof over a room.
+     * @param grounded      its lowest block rests on something rather than hanging off the side
+     *                      of the building.
      */
-    private record Column(int minY, int maxY, boolean ambiguousOnly, boolean hollow) {}
+    private record Column(int minY, int maxY, int floorY, boolean ambiguousOnly, boolean hollow, boolean grounded) {}
 
 
     /**
@@ -581,6 +772,17 @@ public final class VillageBuildings {
         if (name.contains("CORAL")) return false;
 
         return !NATURAL.contains(name);
+    }
+
+    /**
+     * Whether this is ground rather than something built on it.
+     * <p>
+     * The same question the scan asks of every block, turned outwards: a building saved with a
+     * margin around it carries a ring of whatever it was standing next to, and reading that ring
+     * is how the ground it sat in is recognised later, with the building long gone.
+     */
+    public static boolean isGround(@NotNull Material material) {
+        return !material.isAir() && material.isSolid() && !isBuildingMaterial(material);
     }
 
     /**

@@ -46,13 +46,23 @@ public final class VillageDiscovery {
     private static final int MAX_SIDE = 48;
 
     /**
-     * Buildings taken from any one village.
+     * Buildings taken from any one village, before the server says otherwise.
      * <p>
      * A settlement has a handful of shapes and then repeats them, so past a few there is nothing
      * new being learned — only more entries to scroll past. It also bounds what walking into a
      * village can cost, since each one saved is a full read of every block in it.
+     * <p>
+     * Configurable, and it needs to be: a village of seven buildings quietly losing its seventh
+     * is indistinguishable from the scanner failing to see it, and the one thing a limit must
+     * never do is look like a bug. Raising it is what somebody who wants the whole village does;
+     * the log says which one it is so the question does not have to be guessed at.
      */
     private static final int MAX_PER_VILLAGE = 6;
+
+    private int perVillageLimit() {
+        return Math.max(1, me.matsubara.realisticvillagers.files.Config.VILLAGE_BUILD_DISCOVERY_LIMIT
+                .asInt(MAX_PER_VILLAGE));
+    }
 
     public VillageDiscovery(@NotNull RealisticVillagers plugin, @NotNull VillageManager villages) {
         this.plugin = plugin;
@@ -220,9 +230,7 @@ public final class VillageDiscovery {
 
         if (result.saved() <= 0) return;
 
-        plugin.getLogger().info("Recorded " + result.saved() + " building(s) from "
-                + village.getDisplayName() + (player == null ? " (shared)" : " for " + player.getName()) + ".");
-
+        // The tally itself is logged where it is counted, alongside what became of the rest.
         if (player == null) return;
 
         var messages = plugin.getMessages();
@@ -274,15 +282,24 @@ public final class VillageDiscovery {
         java.util.Deque<VillageBuildings.Footprint> queue =
                 new java.util.ArrayDeque<>(VillageBuildings.detect(villages, village));
 
+        int limit = perVillageLimit();
+
         new org.bukkit.scheduler.BukkitRunnable() {
 
             // A cap on how much one village can contribute.
             //
             // A settlement has a handful of shapes and then repeats them, so past a few there is
             // nothing new being learned — only more entries to scroll past.
-            private int budget = MAX_PER_VILLAGE;
+            private int budget = limit;
             private int saved;
             private int skipped;
+
+            // What became of the ones that were not saved, so the log can say so rather than
+            // leaving a tally that looks like the scanner missed a building.
+            private int unsuitable;
+            private int unloadedAway;
+            private int duplicate;
+            private int failed;
 
             /** Cleared the moment a building has to be passed over for being half-unloaded. */
             private boolean complete = true;
@@ -297,11 +314,15 @@ public final class VillageDiscovery {
                     // Anything written is a building the menu doesn't know about yet.
                     if (saved > 0 && plugin.getBlueprints() != null) plugin.getBlueprints().load();
 
+                    // Whatever is still queued when the budget runs out was never looked at.
+                    explain(queue.size() + (building == null ? 0 : 1), limit);
+
                     done.accept(new Result(saved, skipped, region, complete));
                     return;
                 }
 
                 if (!worthRecording(building)) {
+                    unsuitable++;
                     skipped++;
                     return;
                 }
@@ -315,6 +336,7 @@ public final class VillageDiscovery {
                 // outside what is loaded is simply left for a visit that can see all of it.
                 if (!loaded(world, building)) {
                     complete = false;
+                    unloadedAway++;
                     skipped++;
                     return;
                 }
@@ -325,24 +347,58 @@ public final class VillageDiscovery {
 
                 if (plugin.getBlueprints() != null
                         && plugin.getBlueprints().hasIdentical(print, owner, world.getName())) {
+                    duplicate++;
                     skipped++;
                     return;
                 }
 
                 budget--;
 
-                String name = describe(building);
-                if (save(world, building, folder, name)) {
+                String written = save(world, building, folder, describe(building));
+                if (written != null) {
                     saved++;
 
-                    // Noted with the number measured here, so the next visit recognises this
-                    // exact building instead of writing it out again under a new name.
+                    // Noted with the number measured here, and under the name the file actually
+                    // got — which is not always the one asked for, since a village with two
+                    // farmhouses writes the second as "farmer_workplace_2". Noting the name that
+                    // was asked for left the note pointing at a file that was never written, and
+                    // a note pointing nowhere is one that can never be cleared by deleting the
+                    // building it claims to describe.
                     if (plugin.getBlueprints() != null) {
-                        plugin.getBlueprints().remember(print, owner, world.getName(), folder.getParentFile(), name);
+                        plugin.getBlueprints().remember(print, owner, world.getName(),
+                                folder.getParentFile(), written);
                     }
                 } else {
+                    failed++;
                     skipped++;
                 }
+            }
+
+            /**
+             * Says in the log what happened to every building the village had.
+             * <p>
+             * Written because the tally on its own reads as a fault: a village of seven that
+             * contributes six looks exactly like a scanner that cannot see the seventh, and the
+             * seventh is usually the most interesting building in it. Each one passed over now
+             * says why in plain words, so the answer is in the log rather than in the code.
+             */
+            private void explain(int untouched, int limit) {
+                int detected = saved + skipped + untouched;
+                if (detected <= 0 || detected == saved) return;
+
+                java.util.List<String> why = new java.util.ArrayList<>();
+                if (untouched > 0) {
+                    why.add(untouched + " left alone (the limit of " + limit
+                            + " a village was reached — village.build.discovery-limit)");
+                }
+                if (duplicate > 0) why.add(duplicate + " already on file");
+                if (unsuitable > 0) why.add(unsuitable + " too small or too large to record");
+                if (unloadedAway > 0) why.add(unloadedAway + " in chunks that weren't loaded");
+                if (failed > 0) why.add(failed + " that could not be written");
+
+                plugin.getLogger().info("Recorded " + saved + " of " + detected + " building(s) from "
+                        + village.getDisplayName()
+                        + (why.isEmpty() ? "." : ": " + String.join(", ", why) + "."));
             }
         }.runTaskTimer(plugin, 1L, 1L);
     }
@@ -438,8 +494,14 @@ public final class VillageDiscovery {
      * Taken a block wider and a block deeper than the scanner measured. A footprint is the walls,
      * and a building saved exactly to its walls loses the doorstep, the overhanging eave and the
      * step down to the path — the parts that make it look built rather than stamped.
+     * <p>
+     * Sized in blocks rather than cornered on two positions. The two-corner call measures the gap
+     * <i>between</i> the corners, not the blocks they stand on, so it saves one block fewer on
+     * every axis than it is handed: buildings came back with the top course of their roof missing
+     * and the far side of the doorstep shaved off, which is a bug you can only see once the
+     * building is standing again in front of you.
      */
-    private boolean save(
+    private @Nullable String save(
             @NotNull World world,
             VillageBuildings.@NotNull Footprint building,
             @NotNull File folder,
@@ -449,28 +511,32 @@ public final class VillageDiscovery {
             Structure structure = Bukkit.getStructureManager().createStructure();
 
             Location from = new Location(world, building.minX() - 1, building.minY(), building.minZ() - 1);
-            Location to = new Location(world, building.maxX() + 1, building.maxY(), building.maxZ() + 1);
 
             // Entities left out: a villager standing in the doorway when the picture was taken is
             // not part of the house, and would be copied into every one ever built from it.
-            structure.fill(from, to, false);
+            structure.fill(from, new org.bukkit.util.BlockVector(
+                    building.width() + 2,
+                    building.height(),
+                    building.depth() + 2), false);
 
             // Numbered only when a name is already taken, so the first farmhouse is "farmhouse"
             // and not "farmhouse 1".
-            File file = new File(folder, name + ".nbt");
+            String written = name;
+            File file = new File(folder, written + ".nbt");
             for (int suffix = 2; file.exists() && suffix <= 50; suffix++) {
-                file = new File(folder, name + "_" + suffix + ".nbt");
+                written = name + "_" + suffix;
+                file = new File(folder, written + ".nbt");
             }
 
-            if (file.exists()) return false;
+            if (file.exists()) return null;
 
             Bukkit.getStructureManager().saveStructure(file, structure);
-            return true;
+            return written;
         } catch (Throwable throwable) {
             plugin.getLogger().warning("Could not record a building at "
                     + building.minX() + ", " + building.minY() + ", " + building.minZ()
                     + ": " + throwable.getMessage());
-            return false;
+            return null;
         }
     }
 

@@ -58,6 +58,19 @@ public final class HologramManager {
         return playerMenus.containsKey(playerUUID);
     }
 
+    /**
+     * Hides every currently open menu's entities from {@code joined}.
+     * <p>
+     * A menu hides its entities from whoever is online the moment it spawns them, but a player
+     * who joins afterwards would otherwise still see someone else's private interaction panel
+     * floating in the world.
+     */
+    public void hideAllFrom(Player joined) {
+        for (HologramMenu menu : playerMenus.values()) {
+            menu.hideFrom(joined);
+        }
+    }
+
     public @Nullable HologramMenu getMenuForPlayer(UUID playerUUID) {
         return playerMenus.get(playerUUID);
     }

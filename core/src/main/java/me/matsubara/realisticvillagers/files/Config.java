@@ -78,6 +78,13 @@ public enum Config {
     REPUTATION_REQUIRED_TO_MARRY("reputation-required-to-marry"),
     REPUTATION_REQUIRED_TO_PROCREATE("reputation-required-to-procreate"),
 
+    APPEARANCE_BODY_SHAPES("appearance.body-shapes"),
+    APPEARANCE_BUST("appearance.bust"),
+    APPEARANCE_BUILD("appearance.build"),
+    APPEARANCE_PLAYERS("appearance.players"),
+    APPEARANCE_SERVE_PACK("appearance.serve-pack"),
+    APPEARANCE_PACK_PORT("appearance.pack-port"),
+    APPEARANCE_PACK_HOST("appearance.pack-host"),
     NAMETAGS_ONLY_WHEN_LOOKING("nametags.only-when-looking"),
     NAMETAGS_LOOK_RANGE("nametags.look-range"),
 
@@ -117,6 +124,7 @@ public enum Config {
     VILLAGE_BUILD_EMPTY_CONTAINERS("village.build.empty-containers"),
     VILLAGE_BUILD_INSIDE_ONLY("village.build.inside-village-only"),
     VILLAGE_BUILD_PERSONAL_DISCOVERY("village.build.personal-discovery"),
+    VILLAGE_BUILD_DISCOVERY_LIMIT("village.build.discovery-limit"),
     VILLAGE_BUILD_BLOCKS_PER_SECOND("village.build.blocks-per-second"),
 
     VILLAGE_GRAVES_ENABLED("village.graves.enabled"),
@@ -184,6 +192,7 @@ public enum Config {
     INCREASE_BABY_SCALE("increase-baby-scale"),
     GENDER_SELECTION_ENABLED("gender-selection.enabled"),
     GENDER_SELECTION_DEFAULT("gender-selection.default"),
+    GENDER_SELECTION_ALLOW_CHANGE("gender-selection.allow-change"),
 
     // ── gui.yml ──────────────────────────────────────────────────────────────
     CUSTOM_NAME_SHOW_JOB_BLOCK("custom-nametags.show-job-block", ConfigFile.GUI),

@@ -338,22 +338,28 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
     private static boolean fromDataResolved;
 
     private static boolean isEntityChangeBlockEventCancelled(@NotNull Entity entity, @NotNull BlockPos position, BlockState newBlock) {
-        // Fixes "boolean cannot be dereferenced".
-        BlockData data = craftBlockDataOf(newBlock);
-        // CraftBlockData#fromData is an internal CraftBukkit method whose signature isn't guaranteed
-        // stable between snapshot builds of the same Minecraft version (e.g. Purpur 26.2 rebuilds).
-        // If it's gone missing, skip firing the event instead of crashing the villager's AI tick.
-        if (data == null) return false;
+        try {
+            // Fixes "boolean cannot be dereferenced".
+            BlockData data = craftBlockDataOf(newBlock);
+            // CraftBlockData#fromData is an internal CraftBukkit method whose signature isn't guaranteed
+            // stable between snapshot builds of the same Minecraft version (e.g. Purpur 26.2 rebuilds).
+            // If it's gone missing, skip firing the event instead of crashing the villager's AI tick.
+            if (data == null) return false;
 
-        EntityChangeBlockEvent event = new EntityChangeBlockEvent(entity.getBukkitEntity(), CraftBlock.at(entity.level(), position), data);
-        Bukkit.getPluginManager().callEvent(event);
-        return event.isCancelled();
+            EntityChangeBlockEvent event = new EntityChangeBlockEvent(entity.getBukkitEntity(), CraftBlock.at(entity.level(), position), data);
+            Bukkit.getPluginManager().callEvent(event);
+            return event.isCancelled();
+        } catch (Throwable error) {
+            // Whatever else a server build/fork can throw resolving or firing this event must
+            // never crash — and so remove — the villager mid-tick; skip the event instead.
+            return false;
+        }
     }
 
     private static @Nullable BlockData craftBlockDataOf(BlockState newBlock) {
         try {
             return CraftBlockData.fromData(newBlock);
-        } catch (NoSuchMethodError error) {
+        } catch (Throwable error) {
             // The plugin is compiled against a Spigot snapshot whose CraftBlockData#fromData
             // returns CraftBlockData, while this server's returns something else — the JVM
             // matches on return type too, so the call misses. Find it by shape instead.

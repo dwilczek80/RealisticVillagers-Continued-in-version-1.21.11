@@ -230,7 +230,10 @@ hologram:
   #     Move whole lines up or down.  In-game order matches YAML order.
   #
   #   HOW TO RENAME AN ITEM
-  #     Change the  text:  value.  & colour codes are supported.
+  #     Change the  text:  value.  & colour codes are supported, along with
+  #     the placeholders  %player-name%  (the viewer) and  %villager-name%
+  #     (this villager) — usable in any  text:  on this page, including
+  #     custom display lines and sub-menu items below.
   #     The  id:  value must stay exactly as written — it links the line
   #     to its Java action.  Changing it makes the line non-functional.
   #

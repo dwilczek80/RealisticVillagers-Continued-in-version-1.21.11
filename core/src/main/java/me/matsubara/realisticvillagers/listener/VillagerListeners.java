@@ -183,6 +183,14 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
     public void onEntityDeath(@NotNull EntityDeathEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) return;
 
+        // Her figure rides an entity of its own, and an entity does not go away because the one
+        // carrying it did. Taken off her here, while she is still here to take it off — a moment
+        // later there is no passenger list to find it in, and it stands in the grass where she
+        // fell for as long as the server is up.
+        if (plugin.getPlayerAppearanceManager() != null) {
+            plugin.getPlayerAppearanceManager().remove(villager);
+        }
+
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             Inventory open = player.getOpenInventory().getTopInventory();
             if (!(open.getHolder() instanceof InteractGUI interact)) continue;

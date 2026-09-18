@@ -116,10 +116,8 @@ public final class HologramMenu {
     }
 
     /** Reads a label from holograms.yml and translates & colour codes. Falls back to {@code def}. */
-    @SuppressWarnings("deprecation")
     private String label(String path, String def) {
-        String raw = hcfg().getString(path, def);
-        return ChatColor.translateAlternateColorCodes('&', raw != null ? raw : def);
+        return colorStr(hcfg().getString(path, def), def);
     }
 
     /** Reads an ARGB colour from holograms.yml at the given prefix (e.g. "hologram.menu.background"). */
@@ -143,10 +141,13 @@ public final class HologramMenu {
         return result;
     }
 
-    /** Translates & colour codes in {@code raw}; falls back to {@code def} when raw is null. */
+    /** Translates & colour codes in {@code raw} and fills in {@code %player-name%} /
+     *  {@code %villager-name%}; falls back to {@code def} when raw is null. */
     @SuppressWarnings("deprecation")
     private String colorStr(String raw, String def) {
-        return ChatColor.translateAlternateColorCodes('&', raw != null ? raw : def);
+        String text = ChatColor.translateAlternateColorCodes('&', raw != null ? raw : def);
+        return text.replace("%player-name%", player.getName())
+                .replace("%villager-name%", npc.getVillagerName());
     }
 
     /** Reads {@code key} from an item map and applies colour translation; falls back to {@code def}. */
@@ -276,7 +277,7 @@ public final class HologramMenu {
             float  headViewRange = (float) hcfg().getDouble("hologram.head-display.view-range", 8.0);
             boolean headSee      = hcfg().getBoolean("hologram.menu.see-through", true);
             Color   headBg       = bgColor("hologram.menu.background");
-            headDisplays.add(loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+            TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
                 d.setText(lineText);
                 d.setBillboard(Display.Billboard.VERTICAL);
                 d.setViewRange(headViewRange);
@@ -289,7 +290,9 @@ public final class HologramMenu {
                 d.setBackgroundColor(headBg);
                 d.setLineWidth(200);
                 d.setAlignment(TextDisplay.TextAlignment.CENTER);
-            }));
+            });
+            hidePrivately(display);
+            headDisplays.add(display);
         }
     }
 
@@ -380,7 +383,7 @@ public final class HologramMenu {
         float viewRange    = (float) c.getDouble("hologram.menu.view-range",  8.0);
         boolean seeThrough = c.getBoolean("hologram.menu.see-through",       true);
         Color   bg         = bgColor("hologram.menu.background");
-        return loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+        TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
             d.setText(text);
             d.setBillboard(Display.Billboard.VERTICAL);
             d.setViewRange(viewRange);
@@ -394,6 +397,36 @@ public final class HologramMenu {
             d.setLineWidth(lineWidth);
             d.setAlignment(alignment);
         });
+        hidePrivately(display);
+        return display;
+    }
+
+    /**
+     * Keeps a just-spawned hologram entity visible only to this menu's own player.
+     * <p>
+     * Every display here is a real, world-spawned entity, so without this every player standing
+     * nearby would see another player's private menu, reputation, family details, mayor standing,
+     * etc. floating over the villager's head.
+     */
+    private void hidePrivately(org.bukkit.entity.Entity entity) {
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.equals(player)) other.hideEntity(plugin, entity);
+        }
+    }
+
+    /**
+     * Hides every entity this menu currently owns from {@code viewer}.
+     * <p>
+     * Used for a player who joins the server (or otherwise (re)starts seeing entities) while
+     * someone else already has this menu open — without this, a fresh join would show them a
+     * panel that {@link #hidePrivately} only hid from players already online at spawn time.
+     */
+    public void hideFrom(@NotNull Player viewer) {
+        if (viewer.equals(player)) return;
+        for (TextDisplay d : menuDisplays) viewer.hideEntity(plugin, d);
+        for (TextDisplay d : headDisplays) viewer.hideEntity(plugin, d);
+        for (TextDisplay d : infoDisplays) viewer.hideEntity(plugin, d);
+        if (radarPanel != null) radarPanel.hideFrom(viewer, plugin);
     }
 
     // ── Hover highlight (raycast) ──────────────────────────────────────────────
@@ -864,6 +897,10 @@ public final class HologramMenu {
                 RadarPanel.readColors(hcfg().getConfigurationSection("hologram.radar.colors")),
                 selectedBuilding,
                 this::villagerHead);
+
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (!other.equals(player)) radarPanel.hideFrom(other, plugin);
+        }
     }
 
     /**

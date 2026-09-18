@@ -11,6 +11,7 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
@@ -803,6 +804,19 @@ public final class RadarPanel {
 
     public boolean isVisible() {
         return !parts.isEmpty();
+    }
+
+    /**
+     * Hides every drawn part of this map from {@code viewer}.
+     * <p>
+     * The map is real, world-spawned display entities, so left alone it is visible to anyone
+     * standing nearby — this is what keeps it private to whoever opened it, and what catches a
+     * player who joins the server after the map was already drawn.
+     */
+    public void hideFrom(@NotNull Player viewer, @NotNull Plugin plugin) {
+        for (Part part : parts) {
+            if (part.entity != null && !part.entity.isDead()) viewer.hideEntity(plugin, part.entity);
+        }
     }
 
     public static @NotNull Colors readColors(@Nullable ConfigurationSection section) {

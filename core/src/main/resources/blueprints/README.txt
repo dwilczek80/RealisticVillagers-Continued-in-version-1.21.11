@@ -66,6 +66,12 @@ while. The sitting mayor's programme speeds it up or slows it down.
 
 TIPS
 ----
+- Start the file at the floor, and keep a block of the ground around the building in it.
+  A building goes back at the height its own surroundings say it stood at: ground in the
+  outer ring of the bottom layer means it was cut into the earth, and it is laid in place
+  of the turf; air and grass tufts there mean it stood on top of the ground, and it is
+  laid on top. Crop that ring away and the building is stood on the ground, which is the
+  safer of the two guesses.
 - Include the foundation. A building is placed exactly as saved, so whatever is under it
   in the file is what gets laid.
 - Keep the outline tight. Empty space inside it stays empty, and a loose outline makes the
