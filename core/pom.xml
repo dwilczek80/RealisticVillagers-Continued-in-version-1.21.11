@@ -9,7 +9,7 @@
     <parent>
         <groupId>me.matsubara</groupId>
         <artifactId>realisticvillagers-parent</artifactId>
-        <version>3.3.6.11</version>
+        <version>4.0.0</version>
     </parent>
 
     <pluginRepositories>
@@ -241,6 +241,14 @@
             <version>8.4.2</version>
             <scope>system</scope>
             <systemPath>${maven.multiModuleProjectDirectory}/libs/EliteMobs.jar</systemPath>
+        </dependency>
+        <!-- ValhallaMMO (local lib, premium) -->
+        <dependency>
+            <groupId>me.athlaeos</groupId>
+            <artifactId>ValhallaMMO</artifactId>
+            <version>1.14.1</version>
+            <scope>system</scope>
+            <systemPath>${maven.multiModuleProjectDirectory}/libs/ValhallaMMO_premium_1.14.1.jar</systemPath>
         </dependency>
         <!-- VTL -->
         <dependency>

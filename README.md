@@ -15,7 +15,7 @@
 
 ## 📖 The Vision
 
-Forget the days of "Hmmmm" and blank stares. **Realistic Villagers** is the ultimate overhaul for Minecraft villagers. By replacing standard entities with dynamic, skin-aware NPCs, we bring a level of depth and immersion previously unseen — from genealogy and marriage to region-aware personalities and a brand-new hologram-based interface. Whether it's building a family legacy, managing complex trades, or defending your home, every villager has a story.
+Forget the days of "Hmmmm" and blank stares. **Realistic Villagers** is the ultimate overhaul for Minecraft villagers. Every villager is disguised as a dynamic, skin-aware NPC — same vanilla AI and trading underneath, a face and a life on top — bringing a level of depth and immersion previously unseen, from genealogy and marriage to region-aware personalities, whole player-run settlements, and a brand-new hologram-based interface. Whether it's building a family legacy, running a village's economy, or defending your home, every villager has a story.
 
 ---
 
@@ -52,6 +52,21 @@ No more digging through raw YAML — generate and tweak your `config.yml`, holog
 - Villagers are shaped by **where they live**. A desert biome breeds villagers with darker skin tones, Arabic names, and conversations typical of desert dwellers.
 - Snowy biomes dress villagers in warm robes, give them Nordic names, an accent, and a habit of complaining about the cold.
 - Every part of this system — skins, names, dialogue — is **fully customizable or can be disabled** if you prefer vanilla-style consistency.
+
+### 🎭 Appearance Traits *(requires 1.21.4+)*
+- **Every Villager Her Own Body:** Height varies per villager — and, for women, so does a figure drawn from the colours of her own skin — rather than everyone sharing one model.
+- **Players Get One Too:** Optionally gives players the same figure, worn so it turns and moves with them and is visible in third person, not just to onlookers.
+- **Self-Hosted Resource Pack:** The shapes live in a pack the plugin writes and serves over HTTP itself as players join — nothing to host separately, nothing to paste into `server.properties`.
+- **Fails Safe:** If the pack can't reach a player — or can't be served at all — that player simply keeps the plain vanilla model instead of a broken placeholder. Heights still apply regardless, since they need no pack at all.
+
+### 🏰 Settlements
+- **Real Villages:** A bell makes a genuine settlement — named, bordered, with its own residents — drawn live on an in-world radar map that's private to whoever is looking at it.
+- **Mayors & Elections:** Residents stand for office with electoral programmes that change what commissioning a building costs and how fast it goes up. Players and villagers both vote.
+- **A Working Economy:** All 13 vanilla professions produce real goods for the settlement's shared stores — raw materials get refined into whatever its buildings are actually made of.
+- **Commission Buildings:** Preview a building as a ghost before committing, then watch it rise gradually, course by course, with clearance and collision checks so settlements don't overlap themselves.
+- **Blueprints From Anywhere:** Reads vanilla `.nbt` structures and WorldEdit `.schem` files with zero added dependencies, sorted by the region they suit — a desert village is offered desert architecture, never a snow cabin. Walk into *any* village, including ones this plugin never designed, and its buildings become blueprints your own settlements can raise.
+- **Village Storage:** A shared stockpile players can deposit into and withdraw from, either from the chest GUI or the hologram menu.
+- **Graves:** A villager who dies without a cross on hand gets a real grave — built from block and text displays, recording her parents and how she died.
 
 ### 🧠 Advanced Artificial Intelligence
 - **Strategic Combat:** Villagers weigh the odds before engaging — outnumbered NPCs retreat instead of dying pointlessly, and unarmed villagers panic and flee.
@@ -115,6 +130,8 @@ villager-farm:
 | `/rv skins` | Manage and preview NPC skin categories. |
 | `/rv genderset <player> <gender>` | Admin command to override a player's gender. |
 
+Settlements have no commands of their own — right-click a village's bell or its mayor to open the settlement menu, and right-click any villager for its own hologram or chest GUI.
+
 ---
 
 <a id="compatibility"></a>
@@ -124,8 +141,10 @@ We play nice with others:
 - **PacketEvents:** ✅ Required.
 - **ViaVersion / ViaBackwards / ViaRewind:** ✅ Full support from 1.18 to 1.21.11.
 - **Geyser-Spigot:** ✅ Bedrock players supported.
-- **EliteMobs:** ✅ NPCs recognize and react to elite threats.
-- **ItemsAdder:** ✅ Seamless custom item integration.
+- **EliteMobs:** ✅ NPCs recognize and react to elite threats — elite and boss entities are left alone entirely rather than disguised as villagers.
+- **MythicMobs:** ✅ Same idea — a Mythic-tagged entity is never mistaken for one of this plugin's own villagers.
+- **VillagerTradeLimiter:** ✅ Its own trade limits are respected instead of raced against — this plugin defers to it rather than opening its menu on top of it.
+- **ValhallaMMO** *(premium, if installed)*: ✅ The villager menu's "Trade" button opens Valhalla's own custom-merchant interface instead of vanilla trading, converting the villager the first time it's used. Falls back to ordinary trading for any villager Valhalla has nothing configured for.
 - **ProtocolLib / ProtocolSupport:** ✅ Enhanced packet handling for smooth skin transitions.
 
 ---

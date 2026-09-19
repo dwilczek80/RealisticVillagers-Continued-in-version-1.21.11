@@ -250,6 +250,7 @@ public final class RealisticVillagers extends JavaPlugin {
         addCompatibility("EliteMobs", EMCompatibility::new);
         addCompatibility("ViaVersion", ViaCompatibility::new);
         addCompatibility("VillagerTradeLimiter", VTLCompatibility::new);
+        addCompatibility("ValhallaMMO", me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility::new);
         addCompatibility("MythicMobs",
                 () -> villager -> !villager.getPersistentDataContainer().has(MM_KEY, PersistentDataType.STRING));
 

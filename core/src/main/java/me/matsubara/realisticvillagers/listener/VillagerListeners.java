@@ -41,6 +41,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -279,6 +280,40 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         if (handleInteract(event.getPlayer(), event.getHand(), null, event.getRightClicked())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Closes any ValhallaMMO trading window that opened on its own for a villager this plugin
+     * manages, so its own menu is always what a right-click shows first.
+     * <p>
+     * Exists because cancelling {@link PlayerInteractEntityEvent} above is not enough on its own.
+     * Reading ValhallaMMO's own bytecode found its interact handler registered at
+     * {@code EventPriority.HIGHEST} — after this plugin's {@code LOW} — and it never checks
+     * {@code event.isCancelled()} before acting, so it opens its trading window regardless of
+     * whether this plugin already claimed the click. Left alone, a raw right-click on a villager
+     * Valhalla already considers one of its own custom merchants would show Valhalla's window on
+     * the spot, a tick before this plugin's own menu — with its "Trade" button — ever appeared.
+     * <p>
+     * {@code MONITOR} so it runs dead last, after Valhalla's own {@code InventoryOpenEvent} hook
+     * has had its say, and cancelling the event at that point still stops the window from being
+     * shown — Bukkit only sends the open to the client once every handler has run.
+     * <p>
+     * {@link me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility#isExpecting} is
+     * what keeps this from closing the one window that is meant to open this way: the moment this
+     * plugin's own "Trade" button asks Valhalla for it.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onValhallaMerchantOpen(@NotNull InventoryOpenEvent event) {
+        if (!(event.getInventory() instanceof MerchantInventory merchant)) return;
+        if (!(merchant.getMerchant() instanceof Villager villager)) return;
+        if (plugin.getTracker().isInvalid(villager)) return;
+
+        if (me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility
+                .isExpecting(event.getPlayer().getUniqueId())) {
+            return;
+        }
+
+        event.setCancelled(true);
     }
 
     private boolean handleInteract(@NotNull Player player, EquipmentSlot hand, @Nullable WrapperPlayClientInteractEntity.InteractAction action, Entity entity) {

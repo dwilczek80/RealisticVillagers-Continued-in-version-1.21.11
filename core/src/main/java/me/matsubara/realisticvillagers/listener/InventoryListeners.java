@@ -427,15 +427,23 @@ public final class InventoryListeners implements Listener {
             if (villager.isTrading()) {
                 messages.send(player, Messages.Message.INTERACT_FAIL_TRADING);
             } else {
-                if (villager.getRecipes().isEmpty()) {
-                    // Is a baby villager or has empty trades, shake head at player.
-                    messages.send(player, npc, Messages.Message.NO_TRADES);
-                    npc.shakeHead(player);
-                } else {
-                    // Start trading from villager instance so discounts are applied to the player.
-                    plugin.getServer().getScheduler().runTask(plugin, () -> npc.startTrading(player));
-                    return;
-                }
+                // ValhallaMMO support: tried first, and only its own answer decides whether there
+                // is anything to trade. A villager it has taken over may carry no vanilla recipes
+                // of her own at all — her trades live entirely in Valhalla's data, not on the
+                // entity — so checking villager.getRecipes() ahead of it would shake its head at a
+                // villager who has plenty to sell and simply isn't the one holding the list.
+                // Declining falls back to exactly the vanilla check this replaced.
+                startTrading(npc, player, villager, () -> {
+                    if (villager.getRecipes().isEmpty()) {
+                        // Is a baby villager or has empty trades, shake head at player.
+                        messages.send(player, npc, Messages.Message.NO_TRADES);
+                        npc.shakeHead(player);
+                    } else {
+                        // Start trading from villager instance so discounts are applied to the player.
+                        npc.startTrading(player);
+                    }
+                });
+                return;
             }
         } else if (current.getItemMeta() != null) {
             if (RainbowAnimation.isCachedBackground(main.getAnimation(), current)) return;
@@ -848,6 +856,40 @@ public final class InventoryListeners implements Listener {
             if (plugin.getCompatibilityManager().handleVTL(vtl, player, villager)) closeInventory(player);
         });
         return true;
+    }
+
+    /**
+     * Opens trading for this villager, through ValhallaMMO's own interface where that applies and
+     * through {@code fallback} otherwise.
+     * <p>
+     * The single door both the hologram menu's "Trade" button and this chest GUI's "Trade" item
+     * go through, so a server running ValhallaMMO gets the same behaviour from either one rather
+     * than the two silently drifting apart as each grew its own copy of this decision.
+     * <p>
+     * {@code fallback} rather than a hardcoded {@code npc.startTrading(player)}: the two callers
+     * do not agree on what "no Valhalla" should fall back to — the chest GUI still wants its own
+     * "shake head, no trades" check first, the hologram menu does not — and the deciding whether
+     * Valhalla applies is the only part actually worth sharing between them.
+     * <p>
+     * The player is marked with {@link me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility#expect}
+     * before either branch runs, whichever one ends up opening a window. That marking is what
+     * tells apart, from the guard's side, a merchant window this call opened on purpose — Valhalla's
+     * or the plugin's own vanilla one — from Valhalla opening one uninvited on a raw click; see
+     * that method's note for why both branches need it and not just the one that goes through
+     * Valhalla.
+     */
+    public void startTrading(IVillagerNPC npc, Player player, Villager villager, Runnable fallback) {
+        Plugin valhalla = plugin.getServer().getPluginManager().getPlugin("ValhallaMMO");
+
+        runTask(() -> {
+            me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility.expect(player.getUniqueId(), plugin);
+
+            if (valhalla == null || !plugin.getCompatibilityManager().handleValhallaTrade(plugin, valhalla, player, villager)) {
+                // Either Valhalla is not installed, or it was and had nothing configured for her
+                // profession — fall back exactly as if Valhalla were not part of this at all.
+                fallback.run();
+            }
+        });
     }
 
     private void handleExpecting(Player player, @NotNull IVillagerNPC npc, ExpectingType checkType, Messages.Message fromServer, Messages.Message fromVillager) {

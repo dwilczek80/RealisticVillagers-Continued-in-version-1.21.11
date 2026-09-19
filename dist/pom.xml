@@ -9,7 +9,7 @@
     <parent>
         <groupId>me.matsubara</groupId>
         <artifactId>realisticvillagers-parent</artifactId>
-        <version>3.3.6.11</version>
+        <version>4.0.0</version>
     </parent>
 
     <build>

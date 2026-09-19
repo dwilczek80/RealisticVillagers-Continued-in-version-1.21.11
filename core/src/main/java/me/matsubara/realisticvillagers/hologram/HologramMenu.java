@@ -1547,9 +1547,12 @@ public final class HologramMenu {
             }
 
             case TRADE -> {
-                if (!(npc.bukkit() instanceof Villager)) return;
+                if (!(npc.bukkit() instanceof Villager villagerEntity)) return;
                 close(false);
-                plugin.getServer().getScheduler().runTask(plugin, () -> npc.startTrading(player));
+                // ValhallaMMO support: the same door the chest GUI's "Trade" item goes through,
+                // so the two menus agree on whether a villager trades through this plugin or
+                // through Valhalla's own interface. See InventoryListeners#startTrading.
+                plugin.getInventoryListeners().startTrading(npc, player, villagerEntity, () -> npc.startTrading(player));
             }
 
             case FOLLOW_ME -> {
