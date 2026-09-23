@@ -358,6 +358,7 @@ public final class ElectionManager {
         // Before anything else, put back anyone still stuck in campaign robes.
         retryPendingRestores();
         releaseStrandedCandidates();
+        mayors.releaseStrandedMayors();
 
         // Resolve anything that has run its course before opening new races, so a village
         // never has a finished election lingering while a fresh one starts.
@@ -591,7 +592,18 @@ public final class ElectionManager {
             return;
         }
 
-        mayors.appointMayor(village, elected);
+        // The winner was skipped by the restore loop above — on purpose, so it doesn't flip back
+        // to its old trade for an instant before being made mayor — which means it still wears
+        // the campaign's nitwit look right now, and still carries this system's own candidate
+        // mark. Passing its recorded originalProfession explicitly is what stops MayorManager
+        // from reading that live nitwit look back as "what to restore" (see the two-argument
+        // appointMayor overload); clearing the mark here is what stops releaseStrandedCandidates
+        // from later mistaking the new mayor for a candidate whose election never finished.
+        mayors.appointMayor(village, elected, winner.getOriginalProfession());
+        clearCandidateMark(elected);
+        dressedByElection.remove(winner.getVillagerId());
+        pendingRestores.remove(winner.getVillagerId());
+
         village.setMayorProgram(winner.getProgram());
 
         plugin.getLogger().info("Election in " + village.getDisplayName()

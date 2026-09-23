@@ -882,13 +882,19 @@ public final class InventoryListeners implements Listener {
         Plugin valhalla = plugin.getServer().getPluginManager().getPlugin("ValhallaMMO");
 
         runTask(() -> {
-            me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility.expect(player.getUniqueId(), plugin);
+            if (valhalla != null) {
+                // Marked before the attempt, not after — Valhalla opens the real window off its
+                // own schedule (see ValhallaCompatibility#expect), which can land before this
+                // method would otherwise get around to marking it.
+                me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility.expect(
+                        player.getUniqueId(), villager.getUniqueId());
 
-            if (valhalla == null || !plugin.getCompatibilityManager().handleValhallaTrade(plugin, valhalla, player, villager)) {
-                // Either Valhalla is not installed, or it was and had nothing configured for her
-                // profession — fall back exactly as if Valhalla were not part of this at all.
-                fallback.run();
+                if (plugin.getCompatibilityManager().handleValhallaTrade(plugin, valhalla, player, villager)) return;
             }
+
+            // Either Valhalla is not installed, or it was and had nothing configured for her
+            // profession — fall back exactly as if Valhalla were not part of this at all.
+            fallback.run();
         });
     }
 

@@ -25,15 +25,12 @@ commands:
       - rvillagers
       - realvillagers
   gender:
-    description: Change the gender of the villager you're looking at.
+    description: Set your own gender.
     usage: /gender <male|female>
 
 permissions:
   realisticvillagers.village.bypass:
     description: Commission settlement buildings without earning standing with the mayor first.
-    default: op
-  realisticvillagers.gender:
-    description: Allows using /gender to set the gender of a villager you're looking at.
     default: op
   realisticvillagers.genderset:
     description: Allows using /rv genderset to forcibly set a villager's gender for a target player (bypasses gender lock).

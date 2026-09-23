@@ -15,7 +15,7 @@ import org.bukkit.plugin.RegisteredListener;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,14 +37,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * has registered for the event.
  * <p>
  * The window a call here opens is expected to have already been marked with
- * {@link #expect(UUID, RealisticVillagers)} by the caller <i>before</i> this runs — see that
- * method's note on why marking lives there rather than in here.
+ * {@link #expect(UUID, UUID)} by the caller <i>before</i> this runs — see that method's note on
+ * why marking lives there rather than in here.
  */
 public class ValhallaCompatibility implements Compatibility {
 
     /**
-     * Players a deliberate call into trading — this class's, or the plugin's own vanilla fallback
-     * for when this class declined — is about to open a merchant window for.
+     * Player → villager pairs a deliberate call into trading is about to open a merchant window
+     * for.
      * <p>
      * Exists because of one thing found reading Valhalla's own bytecode: its interact handler is
      * registered at {@code EventPriority.HIGHEST} and never checks {@code event.isCancelled()} —
@@ -57,47 +57,50 @@ public class ValhallaCompatibility implements Compatibility {
      * <p>
      * That guard cannot tell "Valhalla opened this uninvited" apart from "the plugin's own vanilla
      * trading opened this, exactly as intended" by looking at the window alone — both are the same
-     * kind of window, a plain {@code MerchantInventory}. So this set covers both outcomes of a
+     * kind of window, a plain {@code MerchantInventory}. So this map covers both outcomes of a
      * deliberate trade attempt, not only the one that goes through Valhalla, which is also why the
      * marking happens once, in the caller that knows about both branches, rather than in here.
+     * <p>
+     * Keyed by player <i>and</i> villager, and never swept on a timer — see {@link #expect} for
+     * why a timeout turned out to be the wrong tool for this.
      */
-    private static final Set<UUID> EXPECTING = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, UUID> EXPECTING = new ConcurrentHashMap<>();
 
     /**
-     * How long a player is allowed to stay "expecting" before the safety sweep drops them, in
-     * ticks.
+     * Marks a player as about to have a deliberately-opened trade window with this villager,
+     * before the attempt that opens it runs.
      * <p>
-     * Generous rather than tight. {@code CustomMerchantManager.getMerchantData} can genuinely go
-     * to disk for a villager whose data was not already cached, and the window that opens once it
-     * answers is still one this plugin asked for. A hole held open a quarter of a second longer
-     * than it had to be is nothing; a trade window closed out from under a player because the
-     * sweep fired a moment too early is a real complaint.
-     */
-    private static final long EXPECTING_TIMEOUT_TICKS = 5L;
-
-    /**
-     * Marks a player as about to have a deliberately-opened trade window, before the attempt that
-     * opens it runs.
+     * Carries no expiry, on purpose — a fixed number of ticks was tried first and does not work.
+     * Reading Valhalla's own bytecode found the actual open does not happen a tick later at all:
+     * {@code onVillagerInteract} hands the rest of the work to
+     * {@code BukkitScheduler#runTaskAsynchronously}, almost certainly to read the merchant's data
+     * off disk without blocking the main thread, and only opens the window once that read answers
+     * — on no fixed schedule at all. A five-tick sweep meant to be a generous safety net was, in
+     * practice, expiring before Valhalla ever got there, so the guard was closing the very window
+     * this plugin had just asked for. Every single trade opened through the "Trade" button was
+     * being cancelled by the plugin's own guard.
      * <p>
-     * Swept up a few ticks later regardless of what happens, so a click that opened nothing at all
-     * — Valhalla declining, or the vanilla fallback finding an empty trade list and shaking its
-     * head instead of opening anything — never leaves the player marked, which would otherwise let
-     * some later, unrelated Valhalla open for them through unchallenged.
+     * The fix is not a longer number to guess with — any fixed wait is still a guess against a
+     * disk read with no upper bound — it is not needing one. One shot, consumed by
+     * {@link #isExpecting}, needs no expiry: the only thing a stale, never-consumed mark can do is
+     * excuse one later, unrelated raw click on the very same villager by the very same player,
+     * which is a narrow enough case that it is not worth trading back to for a coin-flip about
+     * whether five seconds was long enough this time.
      */
-    public static void expect(@NotNull UUID player, @NotNull RealisticVillagers plugin) {
-        EXPECTING.add(player);
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> EXPECTING.remove(player), EXPECTING_TIMEOUT_TICKS);
+    public static void expect(@NotNull UUID player, @NotNull UUID villager) {
+        EXPECTING.put(player, villager);
     }
 
     /**
-     * Whether an unclaimed {@code MerchantInventory} open for this player should be let through.
+     * Whether an unclaimed {@code MerchantInventory} open for this player and villager should be
+     * let through.
      * <p>
-     * One-shot: answering the question consumes it, so a second, unrelated open for the same
-     * player right after — Valhalla reacting to some other click — is judged on its own, not
-     * waved through on the coat-tails of the first.
+     * One-shot: answering the question consumes it, so a second, unrelated open for the same pair
+     * right after — Valhalla reacting to some other click — is judged on its own, not waved
+     * through on the coat-tails of the first.
      */
-    public static boolean isExpecting(@NotNull UUID player) {
-        return EXPECTING.remove(player);
+    public static boolean isExpecting(@NotNull UUID player, @NotNull UUID villager) {
+        return EXPECTING.remove(player, villager);
     }
 
     @Override
@@ -114,7 +117,7 @@ public class ValhallaCompatibility implements Compatibility {
      * <p>
      * Callers are expected to have already marked the player with {@link #expect}; this method
      * only decides whether Valhalla has anything to offer and, if so, asks it to open — it does
-     * not touch the expecting set itself, since the caller also owns the vanilla fallback this
+     * not touch the expecting map itself, since the caller also owns the vanilla fallback this
      * declining leads to, and that fallback's own window needs the same marking.
      *
      * @return {@code false} when Valhalla has nothing to offer here — its trading system is
@@ -144,7 +147,8 @@ public class ValhallaCompatibility implements Compatibility {
         // The same click Valhalla would have seen had this plugin never intercepted the real one
         // — right hand, nothing more. Everything past this point — happiness, reputation, the
         // discount on the price, the recipes themselves — is Valhalla's own logic, running exactly
-        // as it does for anyone who right-clicks one of its merchants directly.
+        // as it does for anyone who right-clicks one of its merchants directly. It runs the actual
+        // open on its own schedule (see the note on expect()), not before this call returns.
         listener.onVillagerInteract(new PlayerInteractEntityEvent(player, villager, EquipmentSlot.HAND));
         return true;
     }

@@ -1455,9 +1455,21 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         onItemPickup(entity);
         take(entity, stack.getCount() - fakeRemaining.getCount());
 
+
+        // A cross, a wedding ring, or any other item this plugin itself crafted is never one of
+        // the above, whatever material it happens to be skinned as — cross and ring both default
+        // to a player head, and a head is equippable, so without this check a cross a villager
+        // walks over to pick up for the revive ritual was "picked up" in name only: taken off the
+        // ground, then handed to the equip logic below instead of her own inventory, and equip
+        // logic has nothing sensible to do with a skull that isn't armor. The result was a cross
+        // that visibly vanished and a villager who never actually came to hold one.
+        org.bukkit.inventory.ItemStack bukkitMirror = CraftItemStack.asCraftMirror(stack);
+        boolean isPluginItem = bukkitMirror.hasItemMeta()
+                && bukkitMirror.getItemMeta().getPersistentDataContainer().has(plugin.getItemIdKey(), PersistentDataType.STRING);
+
         Item item = stack.getItem();
         for (Class<? extends Item> clazz : DO_NOT_SAVE) {
-            if (clazz.isAssignableFrom(item.getClass())) {
+            if (!isPluginItem && clazz.isAssignableFrom(item.getClass())) {
                 handleRemaining(stack, fakeRemaining, entity);
                 if (!wasFromGift) {
                     ItemStackUtils.setBetterWeaponInMaindHand(getBukkitEntity(), event.getItem().getItemStack(), true, true);
@@ -1543,6 +1555,16 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         UUID thrower = getThrower(stack);
         if (isExpectingGiftFrom(thrower)) return true;
         if (fished(stack)) return true;
+
+        // A weapon or a piece of armour lying nearby is recognised on its own, not through the
+        // gift list below — setBetterWeaponInMaindHand/setArmorItem, in pickUpItem, already know
+        // exactly what to do with one once it is picked up, but had nothing to act on: no server
+        // ships a sword or a helmet on default-wanted-items, the list "wanted" otherwise leans on
+        // entirely, so a villager standing over a dropped sword walked past it forever.
+        Item wantedItem = stack.getItem();
+        for (Class<? extends Item> clazz : DO_NOT_SAVE) {
+            if (clazz.isAssignableFrom(wantedItem.getClass())) return true;
+        }
 
         return thrower == null && plugin.getWantedItem(this, CraftItemStack.asBukkitCopy(stack), true) != null;
     }

@@ -93,9 +93,31 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
 
         // PlayerInteractEntityEvent won't be called if this one is cancelled.
         // With this change, we fix the client freezing for some seconds when right-clicking a villager.
+        Player player = event.getPlayer();
+        LivingEntity bukkit = npc.get().getNpc().bukkit();
         EquipmentSlot slot = wrapper.getHand() == InteractionHand.MAIN_HAND ? EquipmentSlot.HAND : EquipmentSlot.OFF_HAND;
-        if (handleInteract(event.getPlayer(), slot, action, npc.get().getNpc().bukkit())) {
+
+        if (handleInteract(player, slot, action, bukkit)) {
             event.setCancelled(true);
+        }
+
+        // The real packet is eaten above regardless of sneaking, same as any other claimed click
+        // — cancelling it here is the one thing that keeps NMS from ever running its own default
+        // interaction (a vanilla trade window) once nothing further down the chain cancels the
+        // Bukkit event either, which is exactly what a sneaking click used to fall through to:
+        // ValhallaMMO's own "too unhappy to trade" branch, and several of its other early exits,
+        // never call setCancelled — they just answer and return — so a packet left alive for them
+        // to answer was a packet vanilla was still free to act on once they were done with it.
+        //
+        // A synthetic copy of the same click is fired here instead, purely so another plugin gets
+        // a genuine event to react to. A sneaking right-click is ValhallaMMO's own gesture for
+        // "tell me why I can't trade" — its happiness breakdown has nothing to run off without
+        // this. Whatever it does with the synthetic copy stays contained to its own listener and
+        // to chat; a merchant window it opens as a result of THIS click is not one this plugin
+        // asked for, and the guard in onValhallaMerchantOpen closes it the same as any other
+        // uninvited one — sneaking shows the numbers, never the trade screen.
+        if (player.isSneaking() && bukkit instanceof Villager villager) {
+            plugin.getServer().getPluginManager().callEvent(new PlayerInteractEntityEvent(player, villager, slot));
         }
     }
 
@@ -277,6 +299,23 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
     // Changed the priority to LOW to support VTL.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPlayerInteractEntity(@NotNull PlayerInteractEntityEvent event) {
+        // Sneaking on a villager is handled once, at the packet level (onPacketPlayReceive) — the
+        // real click there is claimed and its packet eaten exactly like any other, but a
+        // synthetic copy of the same event is then fired deliberately, purely so another plugin
+        // gets a genuine event to react to. This handler sees that synthetic copy too, being a
+        // perfectly ordinary PlayerInteractEntityEvent, and calling handleInteract again here for
+        // the very click it already ran once would run its side effects twice over — a lead
+        // toggling follow on and immediately back off, a whistle summoning family a second time —
+        // for no reason, since this plugin's own menu never opens on a sneaking click either way.
+        //
+        // Scoped to villagers only: a sneaking click on anything else never went through
+        // onPacketPlayReceive's own villager handling in the first place — the packet-level
+        // tracker lookup bails on a non-villager id regardless of sneaking, and nothing fires a
+        // synthetic copy for it — so this real event is that click's first and only stop, and
+        // skipping it here would quietly turn off preventChangeSkinItemUse the moment a player
+        // sneaks at anything that isn't a villager.
+        if (event.getPlayer().isSneaking() && event.getRightClicked() instanceof Villager) return;
+
         if (handleInteract(event.getPlayer(), event.getHand(), null, event.getRightClicked())) {
             event.setCancelled(true);
         }
@@ -301,6 +340,16 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
      * {@link me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility#isExpecting} is
      * what keeps this from closing the one window that is meant to open this way: the moment this
      * plugin's own "Trade" button asks Valhalla for it.
+     * <p>
+     * That includes a sneaking click's own synthetic event (see {@link #onPacketPlayReceive}) —
+     * deliberately, and this is the one place that decision is actually made. Valhalla treats
+     * sneaking as "tell me why I can't trade" and answers with a happiness breakdown in chat, but
+     * nothing about computing that breakdown stops it from also opening the real trading window
+     * once happiness turns out to be fine after all — sneaking only adds the commentary, it does
+     * not ask Valhalla to stop short of trading. Reading the numbers is meant to be the whole of
+     * what a sneaking click does, so any window that click produces is uninvited the same as a
+     * plain click's would be, and is closed here exactly the same way. Only the "Trade" button's
+     * own mark lets a window through, sneaking included.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onValhallaMerchantOpen(@NotNull InventoryOpenEvent event) {
@@ -309,7 +358,7 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         if (plugin.getTracker().isInvalid(villager)) return;
 
         if (me.matsubara.realisticvillagers.compatibility.ValhallaCompatibility
-                .isExpecting(event.getPlayer().getUniqueId())) {
+                .isExpecting(event.getPlayer().getUniqueId(), villager.getUniqueId())) {
             return;
         }
 

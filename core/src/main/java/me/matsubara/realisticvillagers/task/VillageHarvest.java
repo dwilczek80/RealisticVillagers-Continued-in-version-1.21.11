@@ -11,6 +11,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Villager;
+import org.bukkit.entity.memory.MemoryKey;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -135,6 +136,8 @@ public final class VillageHarvest {
     private void fellNearbyTree(@NotNull Village village, @NotNull Villager worker) {
         Block trunk = findTrunk(worker);
         if (trunk == null) return;
+        if (!withinVillage(village, trunk.getLocation())) return;
+        if (!nearWorkstation(worker, trunk.getLocation())) return;
 
         Material log = trunk.getType();
         Location base = trunk.getLocation();
@@ -359,6 +362,9 @@ public final class VillageHarvest {
                     if (block.getRelative(BlockFace.UP).getType() == Material.CACTUS) continue;
                     if (block.getRelative(BlockFace.DOWN).getType() != Material.CACTUS) continue;
 
+                    if (!withinVillage(village, block.getLocation())) continue;
+                    if (!nearWorkstation(worker, block.getLocation())) continue;
+
                     heads.add(block);
                 }
             }
@@ -370,6 +376,57 @@ public final class VillageHarvest {
         head.setType(Material.AIR);
 
         village.getStorage().add(Material.CACTUS, 1);
+    }
+
+    /**
+     * Whether this spot is close enough to the settlement to harvest.
+     * <p>
+     * Asked of the tree or the cactus itself, not the worker standing near it: a resident a step
+     * inside the boundary can still reach a trunk a step past it through {@link #REACH}, and what
+     * a player actually objects to is a tree outside the village coming down, not where the
+     * villager who did it happened to be standing.
+     * <p>
+     * {@code village.harvest.limit-to-village} is the escape hatch, for a server that wants
+     * harvesting to follow its residents wherever they wander instead.
+     */
+    private boolean withinVillage(@NotNull Village village, @NotNull Location location) {
+        return !Config.VILLAGE_HARVEST_LIMIT_TO_VILLAGE.asBool(true)
+                || village.contains(location, villages.getDefaultRadius());
+    }
+
+    /**
+     * Whether this spot is close enough to the worker's own workstation.
+     * <p>
+     * Checked separately from {@link #withinVillage}, and stricter: a village's radius can easily
+     * hold a whole decorative forest that no fletcher's bench is anywhere near, and that is
+     * exactly the case a village-wide boundary alone cannot rule out. Anchoring on the job site
+     * instead — the fletching table a lumberjack (a Fletcher, under the hood) is actually
+     * assigned to — is what a "job", rather than a resident who happens to be standing nearby,
+     * really means here.
+     * <p>
+     * A worker with nothing memorised as her job site right now fails this outright rather than
+     * being let through: there is no bench to measure "near" from, and a lumberjack between jobs
+     * felling trees regardless is exactly the unbounded behaviour this exists to end.
+     */
+    private boolean nearWorkstation(@NotNull Villager worker, @NotNull Location location) {
+        int radius = Config.VILLAGE_HARVEST_WORKSTATION_RADIUS.asInt(24);
+        if (radius <= 0) return true;
+
+        Location job;
+        try {
+            job = worker.getMemory(MemoryKey.JOB_SITE);
+        } catch (Throwable ignored) {
+            // Memory keys have moved between versions; without one to check against, this worker
+            // is left alone rather than treated as having no bounds at all.
+            return false;
+        }
+
+        if (job == null) return false;
+
+        World jobWorld = job.getWorld();
+        if (jobWorld == null || !jobWorld.equals(location.getWorld())) return false;
+
+        return job.distanceSquared(location) <= (double) radius * radius;
     }
 
     public void shutdown() {

@@ -88,6 +88,22 @@ public final class MayorManager {
      * if this is called while a mayor is already seated.
      */
     public void appointMayor(@Nullable Village village, @Nullable Villager villager) {
+        appointMayor(village, villager, villager == null ? null : villager.getProfession());
+    }
+
+    /**
+     * Installs {@code villager} as mayor, recording {@code originalProfession} as what to give
+     * it back once it stands down, instead of reading its current profession for that.
+     * <p>
+     * An election winner already wears the campaign's nitwit look by the time it wins — its
+     * live profession at this point IS nitwit, not the trade it actually held before running.
+     * Reading the live profession here, as the single-argument overload does, would record
+     * nitwit as "what to restore", and every elected mayor would be stuck a nitwit forever,
+     * even after properly standing down. {@link ElectionManager} passes the candidate's own
+     * recorded {@code originalProfession} to route around that; a mayor seated some other way,
+     * with nothing campaigned away yet, can go through the single-argument overload instead.
+     */
+    public void appointMayor(@Nullable Village village, @Nullable Villager villager, @Nullable Villager.Profession originalProfession) {
         if (village == null || villager == null) return;
 
         // Only ever promote someone who isn't holding down a job. Changing a working villager's
@@ -101,7 +117,7 @@ public final class MayorManager {
 
         village.setMayor(villager.getUniqueId());
         ensureProgram(village);
-        markPreviousProfession(villager, villager.getProfession());
+        markPreviousProfession(villager, originalProfession != null ? originalProfession : villager.getProfession());
         setProfessionQuietly(villager, Villager.Profession.NITWIT);
 
         // Refresh unconditionally. Promoting a villager that is ALREADY a nitwit changes no
@@ -185,6 +201,40 @@ public final class MayorManager {
     private static @NotNull String bareName(@NotNull String key) {
         int colon = key.lastIndexOf(':');
         return (colon >= 0 ? key.substring(colon + 1) : key).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private boolean hasPreviousProfession(@NotNull Villager villager) {
+        try {
+            return villager.getPersistentDataContainer().has(previousProfessionKey, PersistentDataType.STRING);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Restores anyone still marked with a previous profession but no longer holding the seat.
+     * <p>
+     * {@link #standDown} clears the mark itself on the way out, so this only ever finds
+     * something when the seat was vacated some other way — namely {@code ElectionManager}
+     * giving up on a mayor it couldn't find for several checks in a row and clearing the seat
+     * directly. That path has no entity in hand to restore at the moment it gives up, so if the
+     * villager was only temporarily untrackable (an unloaded chunk, a tracker hiccup) rather
+     * than actually gone, it would otherwise sit there alive and marked, but never actually
+     * given its job back — a nitwit forever, indistinguishable from one Minecraft grew on its
+     * own. Called every election tick so a villager that turns up again gets caught here as
+     * soon as it does. Restoring only what was genuinely marked (never anyone without a mark)
+     * keeps this from touching a villager that never held office.
+     */
+    public void releaseStrandedMayors() {
+        for (Village village : villages.getVillages()) {
+            for (Villager resident : villages.getResidents(village)) {
+                if (isMayor(village, resident)) continue;
+                if (!hasPreviousProfession(resident)) continue;
+
+                setProfessionQuietly(resident, previousProfession(resident));
+                clearPreviousProfession(resident);
+            }
+        }
     }
 
     private void setProfessionQuietly(@NotNull Villager villager, Villager.Profession profession) {

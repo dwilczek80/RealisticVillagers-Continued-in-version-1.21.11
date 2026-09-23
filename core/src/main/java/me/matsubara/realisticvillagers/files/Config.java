@@ -131,6 +131,8 @@ public enum Config {
 
     VILLAGE_HARVEST_ENABLED("village.harvest.enabled"),
     VILLAGE_HARVEST_INTERVAL("village.harvest.interval"),
+    VILLAGE_HARVEST_LIMIT_TO_VILLAGE("village.harvest.limit-to-village"),
+    VILLAGE_HARVEST_WORKSTATION_RADIUS("village.harvest.workstation-radius"),
 
     IGNORE_SEX_WHEN_PROCREATING("villager-farm.ignore-sex-when-procreating"),
     ALLOW_PARTNER_CHEATING("villager-farm.allow-partner-cheating"),

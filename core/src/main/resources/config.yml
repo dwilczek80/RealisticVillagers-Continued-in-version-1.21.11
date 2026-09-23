@@ -565,6 +565,27 @@ village:
     # How often (in seconds) a harvesting round runs. Kept slower than the economy round
     # because each one can remove a whole tree.
     interval: 45
+    # Keep felling and cactus-cutting inside the settlement's own radius (village.default-radius,
+    # or a mayor's override).
+    #
+    # A lumberjack or food supplier is only found near where it happens to be standing when its
+    # turn comes up, not sent looking for a tree — so without this, a resident that wanders (or
+    # is led) into a forest you planted well outside the village clears it exactly as readily as
+    # the trees actually around the settlement. Turn this off only if you want harvesting to
+    # follow residents wherever they roam.
+    limit-to-village: true
+    # Also require the tree or cactus to be within this many blocks of the worker's OWN
+    # workstation — a fletching table for a lumberjack, a smoker or a composter for a food
+    # supplier — not merely somewhere inside the settlement. A large village can easily hold a
+    # decorative forest nowhere near where any fletcher actually works; this is what keeps
+    # harvesting out of it without having to shrink the whole village's radius to do it.
+    #
+    # A worker with no workstation memorised right now (between jobs, or just hired) fells and
+    # cuts nothing at all rather than falling back to limit-to-village alone — a job with no
+    # bench is not a job yet.
+    #
+    # 0 turns this check off, leaving limit-to-village as the only boundary.
+    workstation-radius: 24
 
 # Here you can allow procreation between villagers of the same sex, procreation between family members and also allow "cheating" of villagers,
 # i.e., allow villagers to procreate with other villagers even if they are married.
