@@ -117,7 +117,15 @@ public final class VillagerListeners extends SimplePacketListenerAbstract implem
         // asked for, and the guard in onValhallaMerchantOpen closes it the same as any other
         // uninvited one — sneaking shows the numbers, never the trade screen.
         if (player.isSneaking() && bukkit instanceof Villager villager) {
-            plugin.getServer().getPluginManager().callEvent(new PlayerInteractEntityEvent(player, villager, slot));
+            // packetevents delivers this listener off the main thread, same as every other
+            // Bukkit-API touch in this method — the rest of them go through handleInteract's
+            // own runTask for it. callEvent() isn't thread-safe, and firing it here directly
+            // handed Valhalla's own listener a villager/inventory to touch from the Netty
+            // thread: not just "no happiness message", but state corrupted underneath the next
+            // click too, sneaking or not, which is exactly the "shows nothing, then trade is
+            // broken too" reported after this shipped.
+            plugin.getServer().getScheduler().runTask(plugin, () ->
+                    plugin.getServer().getPluginManager().callEvent(new PlayerInteractEntityEvent(player, villager, slot)));
         }
     }
 
