@@ -82,7 +82,7 @@ public class SetWalkTargetFromAttackTargetIfTargetOutOfReach extends Behavior<Vi
                 && villager.distanceToSqr(target) > 20.25
                 && villager.getRandom().nextFloat() <= 0.35f
                 && ((path = villager.getNavigation().createPath(target, 0)) != null && path.canReach())) {
-            villager.swing(InteractionHand.MAIN_HAND);
+            villager.swingForAttack(InteractionHand.MAIN_HAND);
             cooldown = 10;
         }
     }

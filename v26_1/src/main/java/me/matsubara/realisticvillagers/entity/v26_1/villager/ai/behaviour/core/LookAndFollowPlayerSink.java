@@ -120,7 +120,7 @@ public class LookAndFollowPlayerSink extends Behavior<Villager> {
         return villager.isAlive()
                 && player != null
                 && Bukkit.getServer().getPlayer(player.getUUID()) != null
-                && !villager.hurtMarked
+                && !villager.wasHurtRecently()
                 && (!checkForGift || !villager.isGiftDropped())
                 && (!checkContainer || player.containerMenu != null);
     }

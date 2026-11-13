@@ -100,7 +100,7 @@ public class HarvestFarmland extends Behavior<Villager> implements Exchangeable 
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
                     mutable.set(villager.getX() + (double) x, villager.getY() + (double) y, villager.getZ() + (double) z);
-                    if (validPos(mutable, level)) validFarmlandAroundVillager.add(new BlockPos(mutable));
+                    if (validPos(mutable, level)) validFarmlandAroundVillager.add(mutable.immutable());
                 }
             }
         }

@@ -3,6 +3,8 @@ package me.matsubara.realisticvillagers.entity.v26_1.villager.ai.behaviour;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import me.matsubara.realisticvillagers.entity.v26_1.villager.VillagerNPC;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EntityType;
@@ -31,6 +33,13 @@ public class TradeWithVillager extends Behavior<Villager> {
 
     private Set<Item> trades = ImmutableSet.of();
     private static final int INTERACT_DIST_SQR = 5;
+
+    // Villager.FOOD_POINTS (a static Item -> points map) is gone; food is now marked per-item
+    // via the VILLAGER_FOOD data component, so the set of "food items" is whichever registered
+    // items carry that component by default.
+    private static final Set<Item> FOOD_ITEMS = BuiltInRegistries.ITEM.stream()
+            .filter(item -> item.components().has(DataComponents.VILLAGER_FOOD))
+            .collect(Collectors.toUnmodifiableSet());
 
     public TradeWithVillager() {
         super(ImmutableMap.of(
@@ -79,7 +88,7 @@ public class TradeWithVillager extends Behavior<Villager> {
         if (((AbstractVillager) target.getBukkitEntity()).getInventory().firstEmpty() == -1) return;
 
         if (villager.hasExcessFood() && (isFarmer(villager) || target.wantsMoreFood())) {
-            throwHalfStack(villager, Villager.FOOD_POINTS.keySet(), target);
+            throwHalfStack(villager, FOOD_ITEMS, target);
         }
 
         SimpleContainer inventory = villager.getInventory();

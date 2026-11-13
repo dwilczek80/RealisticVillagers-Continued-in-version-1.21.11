@@ -21,6 +21,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.SwingAnimation;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
@@ -138,7 +139,7 @@ public class HelpFamily extends Behavior<Villager> implements Exchangeable {
         npc.drop(food.copyWithCount(1), npc.getPlugin().getIgnoreItemKey());
 
         // Swing hand.
-        villager.swing(InteractionHand.MAIN_HAND);
+        villager.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 
         // Time to try to help again (in ticks).
         long cooldown = Config.VILLAGER_HELP_FAMILY_COOLDOWN.asLong();

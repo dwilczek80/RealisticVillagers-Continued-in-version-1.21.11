@@ -63,7 +63,7 @@ public class MeleeAttack extends Behavior<Villager> {
             villager.getJumpControl().jump();
         }
 
-        villager.swing(InteractionHand.MAIN_HAND);
+        villager.swingForAttack(InteractionHand.MAIN_HAND);
         villager.doHurtTarget(level, target);
         villager.getMainHandItem().hurtAndBreak(1, villager, EquipmentSlot.MAINHAND);
 

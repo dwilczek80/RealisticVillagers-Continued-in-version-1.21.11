@@ -262,7 +262,10 @@ public final class RealisticVillagers extends JavaPlugin {
         VersionMatcher matcher = VersionMatcher.getByMinecraftVersion();
         if (matcher == null) {
             logger.severe(
-                    "NMSConverter couldn't find a valid implementation for this server version (" + currentMC + ").");
+                    "This server is running " + currentMC + ", which this build of RealisticVillagers has no "
+                            + "matching NMS implementation for - nearby versions can rework internals this plugin "
+                            + "depends on, so it refuses to guess rather than risk crashing mid-game. The plugin "
+                            + "will disable itself. Supported versions: " + VersionMatcher.listSupportedVersions() + ".");
         } else {
             if (!VersionMatcher.isExactMatch()) {
                 logger.warning("Server version " + currentMC
@@ -581,7 +584,8 @@ public final class RealisticVillagers extends JavaPlugin {
 
         if (converter == null) {
             logger.severe(
-                    "NMSConverter failed to initialize — this server version is not supported. Disabling RealisticVillagers.");
+                    "NMSConverter failed to initialize - this server version is not supported (see the severe "
+                            + "message logged during startup for the exact list). Disabling RealisticVillagers.");
             manager.disablePlugin(this);
             return;
         }

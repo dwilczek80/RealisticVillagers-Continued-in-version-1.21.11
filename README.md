@@ -4,7 +4,7 @@
 **Turn your static villages into a living, breathing civilization.**
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.18--26.2-green)](https://modrinth.com)
+[![Minecraft](https://img.shields.io/badge/Minecraft-see%20compatibility-green)](#compatibility)
 [![Requires: PacketEvents](https://img.shields.io/badge/Requires-PacketEvents-orange)](https://modrinth.com/plugin/packetevents)
 
 [ ✨ Features ](#features) • [ 🌐 Config Website ](#config-website) • [ 🚀 Installation ](#installation) • [ ⚙️ Configuration ](#configuration) • [ 💻 Commands ](#commands) • [ 🤝 Compatibility ](#compatibility)
@@ -137,9 +137,23 @@ Settlements have no commands of their own — right-click a village's bell or it
 <a id="compatibility"></a>
 ## 🤝 Compatibility
 
+**Supported server versions:** 1.19.4, 1.20.6, 1.21.6–1.21.8, 1.21.9–1.21.10, 1.21.11, 26.3.
+
+Minecraft occasionally reworks internals between patches that look adjacent — 1.21.5 and 1.21.6 replaced
+the whole NBT save/load API, and 26.2 and 26.3 did the same to several entity methods (`swing`,
+`blockUsingItem`, `startSleeping`, `randomTeleport`...) — so versions outside this list (1.18.x,
+1.20.1–1.20.5, 1.21–1.21.5, 26.1, 26.1.1, 26.1.2, 26.2) aren't silently half-working: the plugin checks
+the server version on startup and disables itself with a clear message rather than loading a mismatched
+NMS layer. If you're on one of those, the fix is to run a listed version, not to force the plugin through.
+
+**Requires PacketEvents 2.14.0 or newer on 26.3** — 2.13.0 and older don't recognize that server
+version at all and crash on their own before this plugin even gets a chance to check anything, which
+looks identical to a RealisticVillagers startup failure in the console. Update PacketEvents first if
+you're seeing errors right at the top of startup, before `[RealisticVillagers]` even logs anything.
+
 We play nice with others:
 - **PacketEvents:** ✅ Required.
-- **ViaVersion / ViaBackwards / ViaRewind:** ✅ Full support from 1.18 to 1.21.11.
+- **ViaVersion / ViaBackwards / ViaRewind:** ✅ Lets older/newer clients join a server running one of the versions above.
 - **Geyser-Spigot:** ✅ Bedrock players supported.
 - **EliteMobs:** ✅ NPCs recognize and react to elite threats — elite and boss entities are left alone entirely rather than disguised as villagers.
 - **MythicMobs:** ✅ Same idea — a Mythic-tagged entity is never mistaken for one of this plugin's own villagers.

@@ -6,13 +6,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public enum VersionMatcher {
-    v1_18(null, "1.18.2"),
     v1_19(null, "1.19.4"),
     v1_20_6(null, "1.20.6"),
     v1_21_8("v1_21_4", "1.21.6", "1.21.7", "1.21.8"),
     v1_21_10(null, "1.21.9", "1.21.10"),
     v1_21_11(null, "1.21.11"),
-    v26_1(null, "26.1", "26.1.1", "26.1.2", "26.2");
+    // 26.3 reworked several NMS signatures this module relies on (swing, blockUsingItem,
+    // startSleeping, randomTeleport, BlockPos...), the same way 1.21.6 once did for v1_21_8 — so
+    // this module, now built against 26.3, no longer runs on 26.1/26.1.1/26.1.2/26.2 either.
+    v26_1(null, "26.3");
 
     private final String differentName;
     private final String[] versions;
@@ -75,6 +77,26 @@ public enum VersionMatcher {
 
     public String getPackageName() {
         return differentName != null ? differentName : name();
+    }
+
+    /**
+     * Every exact server version this plugin has a matching NMS implementation for, in
+     * declaration order — built from the enum itself so it can never drift out of sync with
+     * what {@link #getByMinecraftVersion()} actually matches against.
+     * <p>
+     * Minecraft occasionally reworks internals between patches that look adjacent (1.21.5 and
+     * 1.21.6, for one, replaced the whole NBT save/load API), so a version missing from this
+     * list isn't an oversight to silently work around — the neighbouring NMS module may simply
+     * not compile against it, let alone run safely. This exists so a server owner hitting a
+     * gap sees exactly what to upgrade (or downgrade) to, instead of a bare "unsupported".
+     */
+    public static @NotNull String listSupportedVersions() {
+        StringBuilder builder = new StringBuilder();
+        for (VersionMatcher matcher : values()) {
+            if (builder.length() > 0) builder.append(", ");
+            builder.append(String.join(", ", matcher.versions));
+        }
+        return builder.toString();
     }
 
     public boolean higherOrEqualThan(@NotNull VersionMatcher compare) {

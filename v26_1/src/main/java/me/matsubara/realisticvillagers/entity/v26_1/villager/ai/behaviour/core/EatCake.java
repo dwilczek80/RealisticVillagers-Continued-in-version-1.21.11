@@ -12,6 +12,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.level.block.CakeBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.gameevent.GameEvent;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
@@ -62,7 +63,7 @@ public class EatCake extends Behavior<Villager> {
                 for (int z = -SEARCH_RANGE; z <= SEARCH_RANGE; z++) {
                     mutable.set(villager.getX() + x, villager.getY() + y, villager.getZ() + z);
                     if (level.getBlockState(mutable).getBlock() instanceof CakeBlock) {
-                        cakePos = new BlockPos(mutable);
+                        cakePos = mutable.immutable();
                     }
                 }
             }
@@ -107,7 +108,7 @@ public class EatCake extends Behavior<Villager> {
 
         level.gameEvent(villager, GameEvent.EAT, cakePos);
         if (bites < 6) {
-            villager.swing(InteractionHand.MAIN_HAND);
+            villager.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
             level.setBlock(cakePos, state.setValue(CakeBlock.BITES, bites + 1), 3);
         } else {
             level.removeBlock(cakePos, false);

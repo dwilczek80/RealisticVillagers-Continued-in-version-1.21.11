@@ -54,7 +54,10 @@ public class StartFishing extends Behavior<Villager> implements Exchangeable {
 
         BlockPos villagerPos = villager.blockPosition();
 
-        Iterator<BlockPos> iterator = BlockPos.withinManhattan(villagerPos, RANGE, RANGE, RANGE).iterator();
+        // withinManhattan(pos, reach) is a true Manhattan-distance diamond now; the old
+        // 3-argument call here iterated a full box (independently bounded per axis), which is
+        // what withinBoxByManhattanDistance keeps doing.
+        Iterator<BlockPos> iterator = BlockPos.withinBoxByManhattanDistance(villagerPos, RANGE, RANGE, RANGE).iterator();
         while (iterator.hasNext()) {
             BlockPos pos = iterator.next();
             if (pos.getX() == villagerPos.getX() && pos.getZ() == villagerPos.getZ()) continue;

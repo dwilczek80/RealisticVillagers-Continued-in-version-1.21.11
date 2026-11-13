@@ -20,6 +20,7 @@ import net.minecraft.world.item.BoneMealItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BonemealSource;
 import net.minecraft.world.level.block.BonemealableBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -93,7 +94,7 @@ public class UseBonemeal extends Behavior<Villager> implements Exchangeable {
         if (block instanceof CropBlock crop && !crop.isMaxAge(state)) return true;
 
         // For other bonemealables.
-        return block instanceof BonemealableBlock bonemealable && bonemealable.isValidBonemealTarget(level, pos, state);
+        return block instanceof BonemealableBlock bonemealable && bonemealable.isValidBonemealTarget(level, pos, state, BonemealSource.MOB);
     }
 
     @Override

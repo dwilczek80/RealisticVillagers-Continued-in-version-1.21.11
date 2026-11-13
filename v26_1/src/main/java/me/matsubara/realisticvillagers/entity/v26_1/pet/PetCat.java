@@ -77,7 +77,7 @@ public class PetCat extends Cat implements Pet {
         goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
         goalSelector.addGoal(2, new CatRelaxOnOwnerGoal(this));
         goalSelector.addGoal(3, temptGoal);
-        goalSelector.addGoal(5, new CatLieOnBedGoal(this, 1.1d, 8));
+        goalSelector.addGoal(5, new CatLieOnBlockGoal(this, 1.1d, 8));
         goalSelector.addGoal(6, new FollowOwnerGoal(this, 1.0d, 10.0f, 5.0f));
         goalSelector.addGoal(7, new CatSitOnBlockGoal(this, 0.8d));
         goalSelector.addGoal(8, new LeapAtTargetGoal(this, 0.3f));
@@ -217,7 +217,7 @@ public class PetCat extends Cat implements Pet {
                 goalPos = data
                         .getOptionalValue(BedBlock.FACING)
                         .map((direction) -> position.relative(direction.getOpposite()))
-                        .orElseGet(() -> new BlockPos(position));
+                        .orElseGet(() -> position);
                 return spaceAvailable();
             }
 
@@ -283,10 +283,11 @@ public class PetCat extends Cat implements Pet {
             mutable.set(cat.blockPosition());
 
             cat.randomTeleport(
-                    mutable.getX() + random.nextInt(11) - 5,
-                    mutable.getY() + random.nextInt(5) - 2,
-                    mutable.getZ() + random.nextInt(11) - 5,
-                    false);
+                    (double) (mutable.getX() + random.nextInt(11) - 5),
+                    (double) (mutable.getY() + random.nextInt(5) - 2),
+                    (double) (mutable.getZ() + random.nextInt(11) - 5),
+                    false,
+                    BlockTags.CAT_DOES_NOT_TELEPORT_TO);
 
             mutable.set(cat.blockPosition());
 

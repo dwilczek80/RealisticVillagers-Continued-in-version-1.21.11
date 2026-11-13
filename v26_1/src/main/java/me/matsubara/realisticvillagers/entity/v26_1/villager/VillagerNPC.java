@@ -107,6 +107,7 @@ import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.component.BlocksAttacks;
 import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.Level;
@@ -1750,9 +1751,10 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     @Override
-    public void startSleeping(BlockPos pos) {
-        super.startSleeping(pos);
+    public boolean startSleeping(BlockPos pos) {
+        boolean started = super.startSleeping(pos);
         collides = false;
+        return started;
     }
 
     @Override
@@ -1867,8 +1869,8 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     @Override
-    protected void blockUsingItem(ServerLevel level, LivingEntity living, DamageSource source, float damage) {
-        super.blockUsingItem(level, living, source, damage);
+    protected void blockUsingItem(ServerLevel level, LivingEntity living, DamageSource source, float damage, boolean fullyBlocked) {
+        super.blockUsingItem(level, living, source, damage, fullyBlocked);
         ItemStack blocking = getItemBlockingWith();
         BlocksAttacks attacks = blocking != null ? blocking.get(DataComponents.BLOCKS_ATTACKS) : null;
         float seconds = living.getSecondsToDisableBlocking();
@@ -2256,7 +2258,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
 
     public void drop(@NotNull ItemStack item, @Nullable NamespacedKey identifier) {
         if (item.isEmpty()) return;
-        swing(InteractionHand.MAIN_HAND);
+        swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 
         ItemEntity itemEntity = new ItemEntity(level(), getX(), getEyeY() - 0.30000001192092896d, getZ(), item);
         itemEntity.setPickUpDelay(40);

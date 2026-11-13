@@ -21,6 +21,7 @@ import net.minecraft.world.entity.animal.golem.IronGolem;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
@@ -106,7 +107,7 @@ public class HealGolem extends Behavior<Villager> implements Exchangeable {
             golem.playSound(SoundEvents.IRON_GOLEM_REPAIR, 1.0f, pitch);
 
             // Swing hand.
-            villager.swing(InteractionHand.MAIN_HAND);
+            villager.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 
             // Time to try to fix again (in ticks).
             long cooldown = Config.VILLAGER_FIX_IRON_GOLEM_COOLDOWN.asLong();
