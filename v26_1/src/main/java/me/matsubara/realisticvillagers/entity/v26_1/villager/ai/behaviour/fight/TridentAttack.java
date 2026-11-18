@@ -30,7 +30,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.enchantments.CraftEnchantment;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -213,7 +213,7 @@ public class TridentAttack extends Behavior<Villager> {
 
         if (Config.RIPTIDE_ONLY_IN_WATER_OR_RAIN.asBool() && !npc.isInWaterOrRain()) return;
 
-        Bukkit.getPluginManager().callEvent(new VillagerRiptideEvent(npc, CraftItemStack.asCraftMirror(weapon)));
+        Bukkit.getPluginManager().callEvent(new VillagerRiptideEvent(npc, CraftCompat.mirror(weapon)));
 
         float yRot = npc.getYRot();
         float xRot = npc.getXRot();

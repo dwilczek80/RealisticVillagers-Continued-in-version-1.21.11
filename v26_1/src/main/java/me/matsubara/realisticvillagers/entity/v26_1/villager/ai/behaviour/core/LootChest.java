@@ -34,6 +34,7 @@ import org.bukkit.block.Container;
 import org.bukkit.block.Sign;
 import org.bukkit.block.sign.Side;
 import org.bukkit.craftbukkit.block.CraftBlock;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -417,7 +418,7 @@ public class LootChest extends Behavior<Villager> implements Exchangeable {
         for (int i = 0; i < inv.getContainerSize(); i++) {
             net.minecraft.world.item.ItemStack nmsItem = inv.getItem(i);
             if (nmsItem.isEmpty()) continue;
-            ItemStack bukkit = CraftItemStack.asCraftMirror(nmsItem);
+            ItemStack bukkit = CraftCompat.mirror(nmsItem);
             if (ItemStackUtils.isWeapon(bukkit) || ItemStackUtils.getSlotByItem(bukkit) != null || bukkit.getType() == Material.SHIELD) continue;
             if (chestItems.contains(bukkit.getType().name())) continue;
             if (npc.getPlugin().getWantedItem(npc, bukkit, false) != null) continue;
@@ -433,7 +434,7 @@ public class LootChest extends Behavior<Villager> implements Exchangeable {
         for (int i = 0; i < inv.getContainerSize(); i++) {
             net.minecraft.world.item.ItemStack nmsItem = inv.getItem(i);
             if (nmsItem.isEmpty()) continue;
-            if (CraftItemStack.asCraftMirror(nmsItem).getType().isEdible()) {
+            if (CraftCompat.mirror(nmsItem).getType().isEdible()) {
                 foodCount += nmsItem.getCount();
             }
         }

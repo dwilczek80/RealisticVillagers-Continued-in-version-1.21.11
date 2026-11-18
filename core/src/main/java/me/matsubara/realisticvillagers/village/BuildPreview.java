@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.village;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import me.matsubara.realisticvillagers.util.PluginUtils;
 import org.bukkit.Location;
@@ -348,7 +349,7 @@ public final class BuildPreview {
         Location at = origin.clone().add(x, y, z);
 
         try {
-            BlockDisplay display = world.spawn(at, BlockDisplay.class, spawned -> {
+            BlockDisplay display = BukkitCompat.spawn(world, at, BlockDisplay.class, spawned -> {
                 spawned.setBlock(data);
                 // Shrunk a little so the ghost reads as a lattice of separate blocks rather than
                 // a solid mass — you can see the shape of the inside through it.

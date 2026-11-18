@@ -1,5 +1,7 @@
 package me.matsubara.realisticvillagers.manager.revive;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
+import com.cryptomorin.xseries.particles.XParticle;
 import com.google.common.collect.ImmutableList;
 import lombok.Getter;
 import me.matsubara.realisticvillagers.RealisticVillagers;
@@ -125,7 +127,7 @@ public class MonumentAnimation extends BukkitRunnable {
 
         // Spawn ligtning at the middle of the target (Y+1 offset for emerald blocks).
         World world = block.getWorld();
-        world.spawn(
+        BukkitCompat.spawn(world, 
                 target.clone().add(0.5d, stage >= HEAD_STAGE ? 0.0d : 1.0d, 0.5d),
                 LightningStrike.class,
                 lightning -> {
@@ -138,7 +140,7 @@ public class MonumentAnimation extends BukkitRunnable {
         // Spawn angry particles above the lightning flame.
         ThreadLocalRandom random = ThreadLocalRandom.current();
         world.spawnParticle(
-                Particle.ANGRY_VILLAGER,
+                XParticle.ANGRY_VILLAGER.get(),
                 target.clone().add(0.5d, 1.5d, 0.5d),
                 1,
                 random.nextGaussian() * 0.02d,

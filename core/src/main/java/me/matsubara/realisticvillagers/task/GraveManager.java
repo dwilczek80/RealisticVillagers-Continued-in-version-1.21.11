@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.task;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
@@ -144,7 +145,7 @@ public final class GraveManager {
         try {
             // A stone, a base it stands on, and a rounded top — three thin slabs rather than one,
             // because a single upright plate reads as a floating tile and not as a headstone.
-            BlockDisplay stone = world.spawn(base, BlockDisplay.class, spawned -> {
+            BlockDisplay stone = BukkitCompat.spawn(world, base, BlockDisplay.class, spawned -> {
                 spawned.setBlock(Material.POLISHED_ANDESITE.createBlockData());
                 spawned.setTransformation(new Transformation(
                         new Vector3f(-0.28f, 0.1f, -0.06f),
@@ -156,7 +157,7 @@ public final class GraveManager {
             spawned.add(stone);
             graveEntities.put(stone.getUniqueId(), grave);
 
-            BlockDisplay cap = world.spawn(base, BlockDisplay.class, spawned -> {
+            BlockDisplay cap = BukkitCompat.spawn(world, base, BlockDisplay.class, spawned -> {
                 spawned.setBlock(Material.ANDESITE_SLAB.createBlockData());
                 spawned.setTransformation(new Transformation(
                         new Vector3f(-0.34f, 0.82f, -0.09f),
@@ -168,7 +169,7 @@ public final class GraveManager {
             spawned.add(cap);
             graveEntities.put(cap.getUniqueId(), grave);
 
-            BlockDisplay plinth = world.spawn(base, BlockDisplay.class, spawned -> {
+            BlockDisplay plinth = BukkitCompat.spawn(world, base, BlockDisplay.class, spawned -> {
                 spawned.setBlock(Material.ANDESITE_SLAB.createBlockData());
                 spawned.setTransformation(new Transformation(
                         new Vector3f(-0.4f, 0.0f, -0.22f),
@@ -186,7 +187,7 @@ public final class GraveManager {
             // straight through them and no event is ever raised, which is why sneaking and
             // clicking a headstone did nothing whatsoever. An interaction entity exists for
             // exactly this: an invisible hitbox that answers clicks on behalf of the scenery.
-            org.bukkit.entity.Interaction hitbox = world.spawn(base, org.bukkit.entity.Interaction.class, spawned -> {
+            org.bukkit.entity.Interaction hitbox = BukkitCompat.spawn(world, base, org.bukkit.entity.Interaction.class, spawned -> {
                 spawned.setInteractionWidth(0.9f);
                 spawned.setInteractionHeight(1.4f);
                 spawned.setResponsive(true);
@@ -195,7 +196,7 @@ public final class GraveManager {
             spawned.add(hitbox);
             graveEntities.put(hitbox.getUniqueId(), grave);
 
-            TextDisplay text = world.spawn(base.clone().add(0.0d, TEXT_HEIGHT, 0.0d), TextDisplay.class, spawned -> {
+            TextDisplay text = BukkitCompat.spawn(world, base.clone().add(0.0d, TEXT_HEIGHT, 0.0d), TextDisplay.class, spawned -> {
                 spawned.setText(PluginUtils.translate(epitaph(grave)));
                 spawned.setBillboard(Display.Billboard.CENTER);
                 spawned.setDefaultBackground(false);

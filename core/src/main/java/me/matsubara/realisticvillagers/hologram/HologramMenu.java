@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.hologram;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import me.matsubara.realisticvillagers.village.RadarPanel;
 import me.matsubara.realisticvillagers.village.Village;
 import me.matsubara.realisticvillagers.village.VillageManager;
@@ -277,7 +278,7 @@ public final class HologramMenu {
             float  headViewRange = (float) hcfg().getDouble("hologram.head-display.view-range", 8.0);
             boolean headSee      = hcfg().getBoolean("hologram.menu.see-through", true);
             Color   headBg       = bgColor("hologram.menu.background");
-            TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+            TextDisplay display = BukkitCompat.spawn(loc.getWorld(), loc, TextDisplay.class, d -> {
                 d.setText(lineText);
                 d.setBillboard(Display.Billboard.VERTICAL);
                 d.setViewRange(headViewRange);
@@ -320,7 +321,7 @@ public final class HologramMenu {
         if (!(npc.bukkit() instanceof Villager villager)) return lines;
 
         double hp = villager.getHealth() + villager.getAbsorptionAmount();
-        AttributeInstance maxHpAttr = villager.getAttribute(Attribute.MAX_HEALTH);
+        AttributeInstance maxHpAttr = villager.getAttribute(BukkitCompat.MAX_HEALTH);
         double maxHp = maxHpAttr != null ? maxHpAttr.getValue() : 20.0;
         int food = npc.getFoodLevel();
 
@@ -383,7 +384,7 @@ public final class HologramMenu {
         float viewRange    = (float) c.getDouble("hologram.menu.view-range",  8.0);
         boolean seeThrough = c.getBoolean("hologram.menu.see-through",       true);
         Color   bg         = bgColor("hologram.menu.background");
-        TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, d -> {
+        TextDisplay display = BukkitCompat.spawn(loc.getWorld(), loc, TextDisplay.class, d -> {
             d.setText(text);
             d.setBillboard(Display.Billboard.VERTICAL);
             d.setViewRange(viewRange);
@@ -684,7 +685,7 @@ public final class HologramMenu {
 
     private void addStatsLines(@NotNull List<InfoLine> out) {
         if (!(npc.bukkit() instanceof Villager v)) return;
-        AttributeInstance maxHpAttr = v.getAttribute(Attribute.MAX_HEALTH);
+        AttributeInstance maxHpAttr = v.getAttribute(BukkitCompat.MAX_HEALTH);
         double maxHp = maxHpAttr != null ? maxHpAttr.getValue() : 20.0;
         double hp    = v.getHealth() + v.getAbsorptionAmount();
         int rep      = npc.getReputation(player.getUniqueId());

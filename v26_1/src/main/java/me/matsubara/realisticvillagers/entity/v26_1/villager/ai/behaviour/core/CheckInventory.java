@@ -12,6 +12,7 @@ import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.schedule.Activity;
 import net.minecraft.world.item.ItemStack;
 import org.bukkit.Material;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 
 public class CheckInventory extends Behavior<Villager> {
@@ -54,7 +55,7 @@ public class CheckInventory extends Behavior<Villager> {
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack item = inventory.getItem(i);
 
-            CraftItemStack bukkitItem = CraftItemStack.asCraftMirror(item);
+            org.bukkit.inventory.ItemStack bukkitItem = CraftCompat.mirror(item);
             if (!ItemStackUtils.isWeapon(bukkitItem)
                     && ItemStackUtils.getSlotByItem(bukkitItem) == null
                     && bukkitItem.getType() != Material.SHIELD) continue;

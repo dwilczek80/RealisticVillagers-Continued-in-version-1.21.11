@@ -134,6 +134,7 @@ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.entity.CraftVillager;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
 import org.bukkit.enchantments.Enchantment;
@@ -729,11 +730,11 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     public boolean isHoldingMeleeWeapon() {
-        return isHolding(stack -> ItemStackUtils.isMeleeWeapon(CraftItemStack.asCraftMirror(stack)) || isCustomMeleeWeapon(stack));
+        return isHolding(stack -> ItemStackUtils.isMeleeWeapon(CraftCompat.mirror(stack)) || isCustomMeleeWeapon(stack));
     }
 
     private static boolean isCustomMeleeWeapon(net.minecraft.world.item.ItemStack stack) {
-        String materialName = CraftItemStack.asCraftMirror(stack).getType().name();
+        String materialName = CraftCompat.mirror(stack).getType().name();
         if (materialName.endsWith("_SPEAR") || materialName.equals("SPEAR") || materialName.equals("MACE")) {
             return true;
         }
@@ -1613,7 +1614,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         UUID thrower = getThrower(stack);
         boolean wasFromGift = isExpectingGiftFrom(thrower);
 
-        EntityPickupItemEvent event = CraftEventFactory.callEntityPickupItemEvent(this, entity, fakeRemaining.getCount(), false);
+        EntityPickupItemEvent event = CraftCompat.callPickupEvent(this, entity, fakeRemaining.getCount(), false);
 
         stack = CraftItemStack.asNMSCopy(event.getItem().getItemStack());
 
@@ -1628,7 +1629,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         // ground, then handed to the equip logic below instead of her own inventory, and equip
         // logic has nothing sensible to do with a skull that isn't armor. The result was a cross
         // that visibly vanished and a villager who never actually came to hold one.
-        org.bukkit.inventory.ItemStack bukkitMirror = CraftItemStack.asCraftMirror(stack);
+        org.bukkit.inventory.ItemStack bukkitMirror = CraftCompat.mirror(stack);
         boolean isPluginItem = bukkitMirror.hasItemMeta()
                 && bukkitMirror.getItemMeta().getPersistentDataContainer().has(plugin.getItemIdKey(), PersistentDataType.STRING);
 
@@ -1717,7 +1718,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         if (isExpectingGiftFrom(thrower)) return true;
         if (fished(stack)) return true;
 
-        org.bukkit.inventory.ItemStack bStack = CraftItemStack.asCraftMirror(stack);
+        org.bukkit.inventory.ItemStack bStack = CraftCompat.mirror(stack);
         if (PluginUtils.isItem(bStack, plugin.getIsCrossKey())
                 && !PluginUtils.hasAnyOf((org.bukkit.inventory.InventoryHolder) getBukkitEntity(), plugin.getIsCrossKey())) {
             return true;
@@ -1734,12 +1735,12 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
     }
 
     public boolean fished(ItemStack item) {
-        ItemMeta meta = CraftItemStack.asCraftMirror(item).getItemMeta();
+        ItemMeta meta = CraftCompat.mirror(item).getItemMeta();
         return meta != null && stringUUID.equals(meta.getPersistentDataContainer().get(plugin.getFishedKey(), PersistentDataType.STRING));
     }
 
     private @Nullable UUID getThrower(ItemStack stack) {
-        ItemMeta meta = CraftItemStack.asCraftMirror(stack).getItemMeta();
+        ItemMeta meta = CraftCompat.mirror(stack).getItemMeta();
         if (meta == null) return null;
 
         String uuidString = meta.getPersistentDataContainer().get(plugin.getGiftKey(), PersistentDataType.STRING);
@@ -1875,7 +1876,7 @@ public class VillagerNPC extends Villager implements IVillagerNPC, CrossbowAttac
         BlocksAttacks attacks = blocking != null ? blocking.get(DataComponents.BLOCKS_ATTACKS) : null;
         float seconds = living.getSecondsToDisableBlocking();
         if (seconds > 0.0f && attacks != null) {
-            attacks.disable(level, this, seconds, blocking);
+            CraftCompat.disableBlocking(attacks, level, this, seconds, blocking, living);
         }
     }
 

@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.task;
 
+import com.cryptomorin.xseries.particles.XParticle;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
 import com.github.retrooper.packetevents.protocol.player.UserProfile;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
@@ -121,7 +122,7 @@ public class PreviewTask extends BukkitRunnable {
 
         double y = box.getHeight() / 2;
         player.getWorld().spawnParticle(
-                Particle.FIREWORK,
+                XParticle.FIREWORK.get(),
                 at,
                 1,
                 box.getWidthX() / 4,

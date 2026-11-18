@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.hologram;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -47,7 +48,7 @@ public final class SpeechBubble {
                 c.getInt("hologram.speech-bubble.background.green", 255),
                 c.getInt("hologram.speech-bubble.background.blue",  255));
 
-        display = entity.getWorld().spawn(speechLocation(), TextDisplay.class, d -> {
+        display = BukkitCompat.spawn(entity.getWorld(), speechLocation(), TextDisplay.class, d -> {
             d.setText("");
             d.setBillboard(Display.Billboard.VERTICAL);
             d.setDefaultBackground(false);

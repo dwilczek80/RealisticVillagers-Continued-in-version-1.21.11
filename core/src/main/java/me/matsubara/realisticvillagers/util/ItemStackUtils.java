@@ -59,12 +59,25 @@ public final class ItemStackUtils {
             "DIAMOND_SWORD",
             "NETHERITE_SWORD"};
 
+    // Looked up by vanilla key rather than by constant: the constants were renamed (PROTECTION was
+    // PROTECTION_ENVIRONMENTAL, and so on) and DENSITY didn't exist before 1.21, so a direct
+    // reference throws NoSuchFieldError on older servers — from this static initializer, which
+    // took down every villager's AI the first time it checked a weapon.
+    private static final @Nullable Enchantment SHARPNESS = BukkitCompat.enchantment("sharpness");
+    private static final @Nullable Enchantment POWER = BukkitCompat.enchantment("power");
+    private static final @Nullable Enchantment DENSITY = BukkitCompat.enchantment("density");
+
     static {
-        ARMOR_REDUCTION.put(Enchantment.PROTECTION, 0.75d);
-        ARMOR_REDUCTION.put(Enchantment.FIRE_PROTECTION, 1.25d);
-        ARMOR_REDUCTION.put(Enchantment.BLAST_PROTECTION, 1.5d);
-        ARMOR_REDUCTION.put(Enchantment.PROJECTILE_PROTECTION, 1.5d);
-        ARMOR_REDUCTION.put(Enchantment.FEATHER_FALLING, 2.5d);
+        armorReduction("protection", 0.75d);
+        armorReduction("fire_protection", 1.25d);
+        armorReduction("blast_protection", 1.5d);
+        armorReduction("projectile_protection", 1.5d);
+        armorReduction("feather_falling", 2.5d);
+    }
+
+    private static void armorReduction(String key, double modifier) {
+        Enchantment enchantment = BukkitCompat.enchantment(key);
+        if (enchantment != null) ARMOR_REDUCTION.put(enchantment, modifier);
     }
 
     public static boolean isSword(@NotNull ItemStack item) {
@@ -294,7 +307,7 @@ public final class ItemStackUtils {
 
     private static double getSharpnessPoints(@NotNull ItemStack item) {
         // https://minecraft.fandom.com/wiki/Sharpness - 0.5 * level + 0.5.
-        int sharpnessLevel = item.getEnchantmentLevel(Enchantment.SHARPNESS);
+        int sharpnessLevel = BukkitCompat.level(item, SHARPNESS);
         return (sharpnessLevel > 0) ? 0.5d * sharpnessLevel + 0.5d : 0.0d;
     }
 
@@ -302,7 +315,7 @@ public final class ItemStackUtils {
         double points = 0.0d;
 
         // https://minecraft.fandom.com/wiki/Power - 25% * (level + 1).
-        int powerLevel = item.getEnchantmentLevel(Enchantment.POWER);
+        int powerLevel = BukkitCompat.level(item, POWER);
         if (powerLevel > 0) {
             points += 0.25d * (powerLevel + 1);
         }
@@ -330,7 +343,7 @@ public final class ItemStackUtils {
         double points = getSharpnessPoints(item);
 
         // https://minecraft.wiki/w/Density - adds 1 per level to fall damage per block.
-        int densityLevel = item.getEnchantmentLevel(Enchantment.DENSITY);
+        int densityLevel = BukkitCompat.level(item, DENSITY);
         if (densityLevel > 0) {
             points += densityLevel;
         }

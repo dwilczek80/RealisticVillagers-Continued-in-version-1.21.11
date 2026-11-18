@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.block.Barrel;
 import org.bukkit.craftbukkit.block.CraftBlock;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 
@@ -62,7 +62,7 @@ public class WorkAtBarrel extends WorkAtPoi {
         Barrel barrel = (Barrel) CraftBlock.at(level, pos.pos()).getState();
         Inventory inventory = barrel.getSnapshotInventory();
         for (ItemStack item : save) {
-            inventory.addItem(CraftItemStack.asCraftMirror(item));
+            inventory.addItem(CraftCompat.mirror(item));
         }
         barrel.setBlockData(barrel.getBlockData());
         barrel.update();

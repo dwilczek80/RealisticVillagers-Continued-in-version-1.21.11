@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.hologram;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import me.matsubara.realisticvillagers.util.PluginUtils;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -39,7 +40,7 @@ public final class ElectionHologram {
         Location at = findClearSpot(bell, heightOffset);
 
         try {
-            display = world.spawn(at, TextDisplay.class, spawned -> {
+            display = BukkitCompat.spawn(world, at, TextDisplay.class, spawned -> {
                 spawned.setBillboard(Display.Billboard.CENTER);
                 // Cull by a box big enough to cover the text, not by its anchor point.
                 spawned.setDisplayWidth(4.0f);
@@ -117,7 +118,7 @@ public final class ElectionHologram {
             org.bukkit.inventory.ItemStack head = heads.get(i);
 
             try {
-                faces.add(world.spawn(at, org.bukkit.entity.ItemDisplay.class, spawned -> {
+                faces.add(BukkitCompat.spawn(world, at, org.bukkit.entity.ItemDisplay.class, spawned -> {
                     spawned.setItemStack(head);
                     // CENTER so the row turns to face whoever is reading it, like the timer.
                     spawned.setBillboard(Display.Billboard.CENTER);

@@ -13,7 +13,6 @@ import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gamerules.GameRules;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.event.entity.EntityRegainHealthEvent.RegainReason;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -114,7 +113,7 @@ public class VillagerFoodData {
         VillagerFoodLevelChangeEvent event = new VillagerFoodLevelChangeEvent(
                 npc,
                 level,
-                item != null ? CraftItemStack.asCraftMirror(item) : null);
+                item != null ? CraftCompat.mirror(item) : null);
         Bukkit.getServer().getPluginManager().callEvent(event);
         return event;
     }

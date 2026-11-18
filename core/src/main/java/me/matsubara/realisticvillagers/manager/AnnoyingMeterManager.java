@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.manager;
 
+import com.cryptomorin.xseries.particles.XParticle;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import me.matsubara.realisticvillagers.entity.IVillagerNPC;
 import me.matsubara.realisticvillagers.files.Config;
@@ -56,7 +57,7 @@ public class AnnoyingMeterManager implements Listener {
 
         if (Config.ANNOYING_METER_ANGRY_PARTICLES.asBool()) {
             LivingEntity bukkit = npc.bukkit();
-            bukkit.getWorld().spawnParticle(org.bukkit.Particle.ANGRY_VILLAGER,
+            bukkit.getWorld().spawnParticle(XParticle.ANGRY_VILLAGER.get(),
                     bukkit.getLocation().add(0.0d, 1.5d, 0.0d),
                     10,
                     0.3d, 0.5d, 0.3d);

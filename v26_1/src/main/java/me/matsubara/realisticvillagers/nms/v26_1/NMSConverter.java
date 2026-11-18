@@ -153,6 +153,9 @@ public class NMSConverter implements INMSConverter {
     }
 
     public NMSConverter(RealisticVillagers plugin) {
+        // Resolves the Spigot/Paper-divergent calls now, so a server build this can't run on
+        // fails the plugin's startup cleanly instead of crashing a villager's AI mid-tick.
+        CraftCompat.verify();
         this.plugin = plugin;
     }
 

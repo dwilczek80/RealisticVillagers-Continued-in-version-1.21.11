@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.village;
 
+import com.cryptomorin.xseries.particles.XParticle;
 import me.matsubara.realisticvillagers.RealisticVillagers;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -175,7 +176,7 @@ public final class BorderVisualizer {
                 // something you can see across the settlement and walk up to.
                 for (int up = 0; up < WALL_HEIGHT; up++) {
                     Location at = new Location(world, x, groundY + 1.0d + up * WALL_STEP, z);
-                    player.spawnParticle(Particle.DUST, at, 1, 0.0d, 0.0d, 0.0d, 0.0d, dust);
+                    player.spawnParticle(XParticle.DUST.get(), at, 1, 0.0d, 0.0d, 0.0d, 0.0d, dust);
                 }
             } catch (Throwable ignored) {
                 // Particle names have moved between versions; the border simply doesn't show.
@@ -237,7 +238,7 @@ public final class BorderVisualizer {
 
     private static void mark(@NotNull Player player, @NotNull World world, Particle.@NotNull DustOptions dust, int x, int y, int z) {
         try {
-            player.spawnParticle(Particle.DUST, new Location(world, x + 0.5d, y + 0.5d, z + 0.5d), 1, 0.0d, 0.0d, 0.0d, 0.0d, dust);
+            player.spawnParticle(XParticle.DUST.get(), new Location(world, x + 0.5d, y + 0.5d, z + 0.5d), 1, 0.0d, 0.0d, 0.0d, 0.0d, dust);
         } catch (Throwable ignored) {
             // Particle names shift between versions; the outline simply doesn't show.
         }

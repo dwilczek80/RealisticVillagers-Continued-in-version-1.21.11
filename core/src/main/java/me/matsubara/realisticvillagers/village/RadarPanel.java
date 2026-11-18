@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.village;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -588,7 +589,7 @@ public final class RadarPanel {
         if (material == null || !material.isBlock()) return;
 
         try {
-            BlockDisplay display = world.spawn(placed(x, y, layer), BlockDisplay.class, spawned -> {
+            BlockDisplay display = BukkitCompat.spawn(world, placed(x, y, layer), BlockDisplay.class, spawned -> {
                 spawned.setBlock(material.createBlockData());
                 spawned.setBillboard(Display.Billboard.FIXED);
                 // Translation is in the entity's own (already rotated) space, so this genuinely
@@ -671,7 +672,7 @@ public final class RadarPanel {
         if (item == null) return;
 
         try {
-            ItemDisplay display = world.spawn(placed(x, y, layer), ItemDisplay.class, spawned -> {
+            ItemDisplay display = BukkitCompat.spawn(world, placed(x, y, layer), ItemDisplay.class, spawned -> {
                 spawned.setItemStack(item);
                 spawned.setBillboard(Display.Billboard.FIXED);
                 // FIXED renders the item flat, like an item frame. GUI renders it tilted the way
@@ -732,7 +733,7 @@ public final class RadarPanel {
     /** Spawns an item icon on the panel, used for the bell at the village centre. */
     private void item(@NotNull World world, double x, double y, double size, @NotNull Material material, double layer) {
         try {
-            ItemDisplay display = world.spawn(placed(x, y, layer), ItemDisplay.class, spawned -> {
+            ItemDisplay display = BukkitCompat.spawn(world, placed(x, y, layer), ItemDisplay.class, spawned -> {
                 spawned.setItemStack(new ItemStack(material));
                 spawned.setBillboard(Display.Billboard.FIXED);
                 // FIXED renders the item flat, like an item frame. GUI renders it tilted the way
@@ -768,7 +769,13 @@ public final class RadarPanel {
         // Move smoothly between ticks instead of snapping, which is what makes following the
         // player read as gliding rather than teleporting.
         display.setInterpolationDuration(2);
-        display.setTeleportDuration(2);
+        // Not on every version this runs on (it arrived after 1.19.4); without it the panel
+        // just snaps between ticks instead of gliding.
+        try {
+            display.setTeleportDuration(2);
+        } catch (Throwable ignored) {
+            // Cosmetic only.
+        }
     }
 
     private @NotNull Location placed(double x, double y, double layer) {

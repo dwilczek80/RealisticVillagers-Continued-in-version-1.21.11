@@ -33,7 +33,7 @@ import net.minecraft.world.item.consume_effects.ConsumeEffect;
 import net.minecraft.world.level.gameevent.GameEvent;
 import org.bukkit.Location;
 import org.bukkit.Particle;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import me.matsubara.realisticvillagers.nms.v26_1.CraftCompat;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
@@ -254,7 +254,7 @@ public class Consume extends Behavior<Villager> implements Exchangeable {
                     0.125d,
                     0.03d,
                     0.0d,
-                    CraftItemStack.asCraftMirror(food));
+                    CraftCompat.mirror(food));
         }
     }
 

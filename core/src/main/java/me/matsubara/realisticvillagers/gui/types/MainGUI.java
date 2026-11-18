@@ -1,5 +1,6 @@
 package me.matsubara.realisticvillagers.gui.types;
 
+import me.matsubara.realisticvillagers.util.BukkitCompat;
 import lombok.Getter;
 import lombok.Setter;
 import me.matsubara.realisticvillagers.RealisticVillagers;
@@ -334,7 +335,7 @@ public final class MainGUI extends InteractGUI {
             activity = plugin.getVariableTextConfig().getString("variable-text.activity." + activity, activity);
         }
 
-        AttributeInstance maxHealthAttribute = bukkit.getAttribute(Attribute.MAX_HEALTH);
+        AttributeInstance maxHealthAttribute = bukkit.getAttribute(BukkitCompat.MAX_HEALTH);
         int level = bukkit.getVillagerLevel();
 
         return new ItemBuilder(item)
